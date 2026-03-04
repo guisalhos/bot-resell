@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div class="navbar">
+  <h3>Bot Resell</h3>
+  <a href="/logout">Logout</a>
+</div>
+
+{% if session.get("reset_message") %}
+    <div class="info">{{ session.get("reset_message") }}</div>
+{% endif %}
+
+<div class="container">
+
+  <div class="chat" id="chat">
+    {% for m in history %}
+      <div class="msg {{ m.role }}">{{ m.text }}</div>
+    {% endfor %}
+
+    {% if reset_msg %}
+      <div class="msg bot info">{{ reset_msg }}</div>
+    {% endif %}
+</div>
+
+
+<form method="POST" class="chatbox">
+  <textarea name="input_text" placeholder="Escreve a tua resposta..." required></textarea>
+  <button type="submit">Enviar</button>
+</form>
+<a class="btn-reset-bottom" href="/reset">🧹 Nova avaliação</a>
+<div class="reset-hint">
+    ⚠️ Ao iniciar uma nova avaliação, a conversa anterior será apagada.
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  const textarea = document.querySelector('textarea[name="input_text"]');
+  const chat = document.getElementById("chat");
+
+  // Scroll automático para o fundo
+  if (chat) {
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // Foco automático no textarea
+  if (textarea) {
+    textarea.focus();
+  }
+
+  // Enter envia | Shift+Enter quebra linha
+  if (textarea) {
+    textarea.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        this.form.submit();
+      }
+    });
+  }
+
+});
+</script>
+
+</body>
+</html>

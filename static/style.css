@@ -1,0 +1,166 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: white;
+  margin: 0;
+}
+
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.card {
+  background: #1e293b;
+  padding: 40px;
+  border-radius: 12px;
+  width: 300px;
+  text-align: center;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  border-radius: 8px;
+  border: none;
+}
+
+textarea { resize: none; }
+
+button {
+  margin-top: 15px;
+  padding: 10px;
+  width: 100%;
+  background: #22c55e;
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+}
+
+button:hover {
+  opacity: 0.9;
+  cursor: pointer;
+}
+
+.navbar {
+  background: #1e293b;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.container {
+  padding: 18px;
+}
+
+/* =======================
+   INFO (reset message)
+======================= */
+.info {
+  max-width: 900px;
+  margin: 12px auto 0 auto;
+  background: #0d3b2e;
+  border: 1px solid #22c55e;
+  color: white;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.chat {
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 18px;
+  max-width: 900px;
+  margin: 14px auto 12px auto;
+
+  /* QUASE A OCUPAR TUDO (vertical) */
+  height: calc(80vh - 260px); 
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* mensagens */
+.msg {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  max-width: 85%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.25rem;
+}
+
+.msg.user {
+  background: #1f2937;
+  margin-left: auto;
+}
+
+.msg.bot {
+  background: #1e293b;
+  margin-right: auto;
+}
+
+/* se usares msg bot info */
+.msg.info {
+  background: #0d3b2e;
+  border: 1px solid #22c55e;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* =======================
+   ÁREA DE ESCRITA (fora)
+   textarea -> enviar -> reset
+======================= */
+.chatbox {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* textarea mais curta para caber reset */
+.chatbox textarea {
+  height: 80px;
+  margin-top: 0;
+}
+
+/* Botão reset em baixo do enviar */
+.btn-reset-bottom {
+  display: block;
+  max-width: 900px;
+  margin: 10px auto 0 auto;
+  text-align: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #334155;
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.btn-reset-bottom:hover {
+  opacity: 0.9;
+}
+
+/* Hint */
+.reset-hint {
+  max-width: 900px;
+  margin: 6px auto 0 auto;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.error {
+  color: red;
+}
