@@ -62,6 +62,78 @@ button:hover {
   padding: 18px;
 }
 
+@media (max-width: 768px) {
+
+  /* Menos margem/padding no ecrã pequeno */
+  .container {
+    padding: 14px;
+  }
+
+  /* Navbar mais compacta */
+  .navbar {
+    padding: 12px 14px;
+  }
+
+  .navbar h3 {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  /* Chat ocupa praticamente toda a largura e mais altura */
+  .chat {
+    max-width: 100%;
+    width: 100%;
+    height: 68vh;              /* mais alto no telemóvel */
+    padding: 14px;
+    margin: 0 auto 12px auto;
+    border-radius: 12px;
+  }
+
+  /* Mensagens mais “touch” e maiores */
+  .msg {
+    max-width: 92%;
+    padding: 12px 12px;
+    font-size: 16px;
+  }
+
+  /* Caixa de escrever + botões iguais à largura */
+  .chatbox {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .chatbox textarea {
+    height: 90px;
+    font-size: 16px; /* evita zoom estranho no iPhone */
+  }
+
+  button {
+    padding: 12px;
+    font-size: 16px;
+  }
+
+  .btn-reset-bottom {
+    width: 100%;
+    display: block;
+    text-align: center;
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 10px;
+  }
+
+  .reset-hint {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  /* Login card ajusta ao ecrã */
+  .card {
+    width: 92%;
+    max-width: 360px;
+    padding: 26px;
+  }
+}
+
 /* =======================
    INFO (reset message)
 ======================= */
