@@ -69,6 +69,15 @@ button:hover {
     padding: 14px;
   }
 
+  input, textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 15px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+}
+
   /* Navbar mais compacta */
   .navbar {
     padding: 12px 14px;
