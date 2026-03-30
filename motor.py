@@ -59,7 +59,9 @@ preco_revenda = {
 }
 
 FATOR_ESTADO = {"Novo": 1.0, "Muito bom": 0.9, "Bom": 0.75,"Usado": 0.6}
-MARCAS_PREMIUM = ["carhartt", "stussy", "the north face", "ralph lauren"]
+MARCAS_PREMIUM = ["carhartt", "stussy", "the north face", "ralph lauren", "supreme",
+    "palace","stone island","patagonia","arc'teryx","bape","kith","aime leon dore","cp company",
+    "human made","noah","neighborhood","wtaps","billionaire boys club","hoodie corteiz"]
 CATEGORIAS_VALIDAS = ["hoodie", "t-shirt", "casaco"]
 ESTADOS_VALIDOS = ["Novo", "Muito bom", "Bom", "Usado"]
 MARCAS_VALIDAS = list(set([ch.split(" ", 1)[1] for ch in preco_revenda.keys()]))
@@ -135,8 +137,8 @@ def _validar_lista(txt, tipo):
 
 def _avaliar_peca_individual_core(tipo, marca, tamanho, estado, preco_total):
     lucro_minimo_por_tipo = {"t-shirt": 7, "hoodie": 10, "casaco": 15, "calças": 10}
-    topmarcas = ["nike", "carhartt", "stussy", "ralph lauren", "the north face"]
-    boasmarcas = ["dickies", "adidas"]
+    topmarcas = []
+    boasmarcas = ["nike", "carhartt", "stussy", "ralph lauren", "the north face"]
 
     chave = f"{tipo} {marca}"
     preco_base = preco_revenda.get(chave, 0)
