@@ -58,7 +58,7 @@ preco_revenda = {
     "hoodie zara":17, "t-shirt zara":7, "casaco zara": 22
 }
 
-FATOR_ESTADO = {"Novo": 1.0, "Muito bom": 0.9, "Bom": 0.75,"Usado": 0.6}
+FATOR_ESTADO = {"Novo": 1.0, "Muito bom": 0.85, "Bom": 0.75,"Usado": 0.6}
 MARCAS_PREMIUM = ["carhartt", "stussy", "the north face", "ralph lauren", "supreme",
     "palace","stone island","patagonia","arc'teryx","bape","kith","aime leon dore","cp company",
     "human made","noah","neighborhood","wtaps","billionaire boys club","hoodie corteiz"]
@@ -150,9 +150,9 @@ def _avaliar_peca_individual_core(tipo, marca, tamanho, estado, preco_total):
 
     # Ajuste de revenda por estado (igual ao teu)
     if estado == "usado":
-        preco_base *= 0.70
+        preco_base *= 0.65
     elif estado == "bom":
-        preco_base *= 0.85
+        preco_base *= 0.80
 
     lucro_minimo = lucro_minimo_por_tipo.get(tipo, 10)
     lucro = preco_base - preco_total
