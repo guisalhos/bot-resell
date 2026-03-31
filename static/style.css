@@ -246,3 +246,42 @@ button:hover {
 .error {
   color: red;
 }
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.nav-tab {
+  color: white;
+  text-decoration: none;
+  font-weight: bold;
+  opacity: 0.75;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: 0.2s;
+}
+
+.nav-tab:hover {
+  opacity: 1;
+  background: #334155;
+}
+
+.nav-tab.active {
+  opacity: 1;
+  background: #475569;
+}
+
+.stock-box {
+  max-width: 900px;
+  margin: 40px auto;
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 30px;
+}
+
+.stock-box h2 {
+  margin-top: 0;
+}

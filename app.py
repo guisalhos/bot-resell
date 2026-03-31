@@ -82,6 +82,12 @@ def logout():
     session.pop("history", None)
     return redirect("/")
 
+@app.route("/stock")
+def stock():
+    if "user" not in session:
+        return redirect("/")
+
+    return render_template("stock.html")
 
 if __name__ == "__main__":
     app.run()
