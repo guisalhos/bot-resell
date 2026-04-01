@@ -96,13 +96,6 @@ def stock():
     if "user" not in session:
         return redirect("/")
 
-    return render_template("stock.html")
-
-@app.route("/stock")
-def stock():
-    if "user" not in session:
-        return redirect("/")
-
     stock_data = get_stock_page_data()
     return render_template("stock.html", **stock_data)
 
