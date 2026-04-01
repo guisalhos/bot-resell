@@ -1,5 +1,14 @@
 from flask import Flask, render_template, request, redirect, session
 from users import users
+from stock_manager import (
+    get_stock_page_data,
+    add_item,
+    mark_as_sold,
+    update_status,
+    delete_item,
+    add_expense,
+    delete_expense
+)
 
 from motor import bot_inicio, bot_prompt, bot_processar
 
@@ -88,6 +97,71 @@ def stock():
         return redirect("/")
 
     return render_template("stock.html")
+
+@app.route("/stock")
+def stock():
+    if "user" not in session:
+        return redirect("/")
+
+    stock_data = get_stock_page_data()
+    return render_template("stock.html", **stock_data)
+
+
+@app.route("/stock/add-item", methods=["POST"])
+def stock_add_item():
+    if "user" not in session:
+        return redirect("/")
+
+    add_item(request.form)
+    return redirect("/stock")
+
+
+@app.route("/stock/mark-sold/<int:item_id>", methods=["POST"])
+def stock_mark_sold(item_id):
+    if "user" not in session:
+        return redirect("/")
+
+    sold_price = request.form["sold_price"]
+    sold_date = request.form["sold_date"]
+    mark_as_sold(item_id, sold_price, sold_date)
+    return redirect("/stock")
+
+
+@app.route("/stock/update-status/<int:item_id>", methods=["POST"])
+def stock_update_status(item_id):
+    if "user" not in session:
+        return redirect("/")
+
+    new_status = request.form["status"]
+    update_status(item_id, new_status)
+    return redirect("/stock")
+
+
+@app.route("/stock/delete-item/<int:item_id>", methods=["POST"])
+def stock_delete_item(item_id):
+    if "user" not in session:
+        return redirect("/")
+
+    delete_item(item_id)
+    return redirect("/stock")
+
+
+@app.route("/stock/add-expense", methods=["POST"])
+def stock_add_expense():
+    if "user" not in session:
+        return redirect("/")
+
+    add_expense(request.form)
+    return redirect("/stock")
+
+
+@app.route("/stock/delete-expense/<int:expense_id>", methods=["POST"])
+def stock_delete_expense(expense_id):
+    if "user" not in session:
+        return redirect("/")
+
+    delete_expense(expense_id)
+    return redirect("/stock")
 
 if __name__ == "__main__":
     app.run()

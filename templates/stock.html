@@ -10,10 +10,232 @@
 <div class="navbar">
   <div class="nav-left">
     <h3>Bot Resell</h3>
-    <a class="nav-tab" href="/dashboard">Avaliação</a>
-    <a class="nav-tab active" href="/stock">Gestão de Stock</a>
+    <a class="navlink" href="/dashboard">Avaliação</a>
+    <a class="navlink active" href="/stock">Gestão de Stock</a>
   </div>
   <a href="/logout">Logout</a>
 </div>
 
-<div class="container">
+<div class="container stock-page">
+
+  <h1 class="stock-title">Gestão de Stock</h1>
+
+  <!-- RESUMO -->
+  <div class="summary-grid">
+    <div class="summary-card">
+      <span class="summary-label">Peças em stock</span>
+      <span class="summary-value">{{ total_stock_quantity }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Peças vendidas</span>
+      <span class="summary-value">{{ total_sold_quantity }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Total gasto</span>
+      <span class="summary-value">{{ total_spent }}€</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Faturação</span>
+      <span class="summary-value">{{ total_revenue }}€</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Lucro bruto</span>
+      <span class="summary-value">{{ gross_profit }}€</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Outras despesas</span>
+      <span class="summary-value">{{ total_extra_expenses }}€</span>
+    </div>
+  </div>
+
+  <!-- ADICIONAR PEÇA -->
+  <div class="section-card">
+    <h2>Adicionar peça</h2>
+    <form method="POST" action="/stock/add-item" class="stock-form-grid">
+      <input type="text" name="name" placeholder="Nome da peça" required>
+      <input type="text" name="brand" placeholder="Marca">
+      <input type="text" name="category" placeholder="Categoria">
+      <input type="number" name="quantity" placeholder="Quantidade" min="1" required>
+      <input type="date" name="buy_date" required>
+      <input type="number" step="0.01" min="0" name="buy_price" placeholder="Preço pago por peça" required>
+
+      <select name="status" required>
+        <option value="Comprado">Comprado</option>
+        <option value="Fotografado">Fotografado</option>
+        <option value="Anunciado">Anunciado</option>
+        <option value="Embrulhado">Embrulhado</option>
+        <option value="Enviado">Enviado</option>
+        <option value="Vendido">Vendido</option>
+      </select>
+
+      <input type="text" name="platform" placeholder="Plataforma (Vinted, OLX...)">
+      <input type="text" name="location" placeholder="Localização (Caixa 1, Armário...)">
+      <input type="text" name="notes" placeholder="Observações">
+
+      <button type="submit" class="full-width-btn">Adicionar peça</button>
+    </form>
+  </div>
+
+  <!-- STOCK ATUAL -->
+  <div class="section-card">
+    <h2>Peças em stock</h2>
+
+    {% if stock_items %}
+      <div class="table-wrapper">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Marca</th>
+              <th>Categoria</th>
+              <th>Qtd</th>
+              <th>Compra</th>
+              <th>Preço/peça</th>
+              <th>Total investido</th>
+              <th>Estado</th>
+              <th>Plataforma</th>
+              <th>Localização</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in stock_items %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ item.brand }}</td>
+              <td>{{ item.category }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.buy_date }}</td>
+              <td>{{ item.buy_price }}€</td>
+              <td>{{ (item.quantity * item.buy_price)|round(2) }}€</td>
+              <td>
+                <form method="POST" action="/stock/update-status/{{ item.id }}" class="inline-form">
+                  <select name="status" onchange="this.form.submit()">
+                    {% for st in ["Comprado","Fotografado","Anunciado","Embrulhado","Enviado","Vendido"] %}
+                      <option value="{{ st }}" {% if item.status == st %}selected{% endif %}>{{ st }}</option>
+                    {% endfor %}
+                  </select>
+                </form>
+              </td>
+              <td>{{ item.platform }}</td>
+              <td>{{ item.location }}</td>
+              <td>
+                <form method="POST" action="/stock/delete-item/{{ item.id }}" class="inline-form">
+                  <button type="submit" class="danger-btn">Apagar</button>
+                </form>
+              </td>
+            </tr>
+
+            <tr class="sold-row">
+              <td colspan="11">
+                <form method="POST" action="/stock/mark-sold/{{ item.id }}" class="sold-form">
+                  <strong>Marcar como vendido:</strong>
+                  <input type="number" step="0.01" min="0" name="sold_price" placeholder="Preço de venda por peça" required>
+                  <input type="date" name="sold_date" required>
+                  <button type="submit">Guardar venda</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>Ainda não tens peças em stock.</p>
+    {% endif %}
+  </div>
+
+  <!-- VENDIDAS -->
+  <div class="section-card">
+    <h2>Peças vendidas</h2>
+
+    {% if sold_items %}
+      <div class="table-wrapper">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Qtd</th>
+              <th>Data compra</th>
+              <th>Preço pago</th>
+              <th>Data venda</th>
+              <th>Preço venda</th>
+              <th>Lucro</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in sold_items %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.buy_date }}</td>
+              <td>{{ item.buy_price }}€</td>
+              <td>{{ item.sold_date }}</td>
+              <td>{{ item.sold_price }}€</td>
+              <td>{{ ((item.sold_price * item.quantity) - (item.buy_price * item.quantity))|round(2) }}€</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>Ainda não tens peças vendidas.</p>
+    {% endif %}
+  </div>
+
+  <!-- OUTRAS DESPESAS -->
+  <div class="section-card">
+    <h2>Outros materiais / despesas</h2>
+
+    <form method="POST" action="/stock/add-expense" class="stock-form-grid">
+      <input type="text" name="name" placeholder="Nome (sacos, impressão...)" required>
+      <input type="text" name="category" placeholder="Categoria">
+      <input type="number" name="quantity" min="1" placeholder="Quantidade" required>
+      <input type="date" name="date" required>
+      <input type="number" step="0.01" min="0" name="cost" placeholder="Custo total" required>
+      <input type="text" name="notes" placeholder="Observações">
+      <button type="submit" class="full-width-btn">Adicionar despesa</button>
+    </form>
+
+    {% if expenses %}
+      <div class="table-wrapper mt-20">
+        <table class="stock-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Qtd</th>
+              <th>Data</th>
+              <th>Custo</th>
+              <th>Observações</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for exp in expenses %}
+            <tr>
+              <td>{{ exp.name }}</td>
+              <td>{{ exp.category }}</td>
+              <td>{{ exp.quantity }}</td>
+              <td>{{ exp.date }}</td>
+              <td>{{ exp.cost }}€</td>
+              <td>{{ exp.notes }}</td>
+              <td>
+                <form method="POST" action="/stock/delete-expense/{{ exp.id }}" class="inline-form">
+                  <button type="submit" class="danger-btn">Apagar</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>Ainda não tens despesas extra registadas.</p>
+    {% endif %}
+  </div>
+
+</div>
+
+</body>
+</html>
