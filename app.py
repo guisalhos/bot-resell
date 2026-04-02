@@ -7,7 +7,8 @@ from stock_manager import (
     update_status,
     delete_item,
     add_expense,
-    delete_expense
+    delete_expense,
+    revert_sold
 )
 
 from motor import bot_inicio, bot_prompt, bot_processar
@@ -154,6 +155,14 @@ def stock_delete_expense(expense_id):
         return redirect("/")
 
     delete_expense(expense_id)
+    return redirect("/stock")
+
+@app.route("/stock/revert-sold/<int:item_id>", methods=["POST"])
+def stock_revert_sold(item_id):
+    if "user" not in session:
+        return redirect("/")
+
+    revert_sold(item_id)
     return redirect("/stock")
 
 if __name__ == "__main__":
