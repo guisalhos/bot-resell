@@ -111,7 +111,7 @@
               <td>
                 <form method="POST" action="/stock/update-status/{{ item.id }}" class="inline-form">
                   <select name="status" onchange="this.form.submit()">
-                    {% for st in ["Comprado","Fotografado","Anunciado","Embrulhado","Enviado","Vendido"] %}
+                    {% for st in ["Comprado","Fotografado","Anunciado","Embrulhado","Enviado"] %}
                       <option value="{{ st }}" {% if item.status == st %}selected{% endif %}>{{ st }}</option>
                     {% endfor %}
                   </select>
