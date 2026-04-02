@@ -147,41 +147,51 @@
 
   <!-- VENDIDAS -->
   <div class="section-card">
-    <h2>Peças vendidas</h2>
+  <h2>Peças vendidas</h2>
 
-    {% if sold_items %}
-      <div class="table-wrapper">
-        <table class="stock-table">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Qtd</th>
-              <th>Data compra</th>
-              <th>Preço pago</th>
-              <th>Data venda</th>
-              <th>Preço venda</th>
-              <th>Lucro</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in sold_items %}
-            <tr>
-              <td>{{ item.name }}</td>
-              <td>{{ item.quantity }}</td>
-              <td>{{ item.buy_date }}</td>
-              <td>{{ item.buy_price }}€</td>
-              <td>{{ item.sold_date }}</td>
-              <td>{{ item.sold_price }}€</td>
-              <td>{{ ((item.sold_price * item.quantity) - (item.buy_price * item.quantity))|round(2) }}€</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p>Ainda não tens peças vendidas.</p>
-    {% endif %}
-  </div>
+  {% if sold_items %}
+    <div class="table-wrapper">
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Qtd</th>
+            <th>Data compra</th>
+            <th>Preço pago</th>
+            <th>Data venda</th>
+            <th>Preço venda</th>
+            <th>Lucro</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in sold_items %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.buy_date }}</td>
+            <td>{{ item.buy_price }}€</td>
+            <td>{{ item.sold_date }}</td>
+            <td>{{ item.sold_price }}€</td>
+            <td>{{ ((item.sold_price * item.quantity) - (item.buy_price * item.quantity))|round(2) }}€</td>
+            <td class="actions-cell">
+              <form method="POST" action="/stock/revert-sold/{{ item.id }}" class="inline-form">
+                <button type="submit" class="secondary-btn">Voltar para stock</button>
+              </form>
+
+              <form method="POST" action="/stock/delete-item/{{ item.id }}" class="inline-form">
+                <button type="submit" class="danger-btn">Apagar</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Ainda não tens peças vendidas.</p>
+  {% endif %}
+</div>
 
   <!-- OUTRAS DESPESAS -->
   <div class="section-card">

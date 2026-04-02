@@ -156,3 +156,15 @@ def get_stock_page_data():
         "total_revenue": round(total_revenue, 2),
         "gross_profit": round(gross_profit, 2)
     }
+
+def revert_sold(item_id):
+    data = load_data()
+
+    for item in data["items"]:
+        if item["id"] == item_id:
+            item["status"] = "Comprado"
+            item["sold_price"] = None
+            item["sold_date"] = None
+            break
+
+    save_data(data)
