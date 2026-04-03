@@ -1,9 +1,7 @@
 import json
 import os
-from datetime import datetime
 
 DATA_DIR = "data"
-STOCK_FILE = os.path.join(DATA_DIR, "stock_data.json")
 
 DEFAULT_DATA = {
     "items": [],
@@ -11,21 +9,34 @@ DEFAULT_DATA = {
 }
 
 
-def ensure_data_file():
+def get_stock_file(username):
     os.makedirs(DATA_DIR, exist_ok=True)
-    if not os.path.exists(STOCK_FILE):
-        with open(STOCK_FILE, "w", encoding="utf-8") as f:
+    return os.path.join(DATA_DIR, f"{username}_stock.json")
+
+
+def ensure_data_file(username):
+    stock_file = get_stock_file(username)
+
+    if os.path.exists(stock_file) and os.path.isdir(stock_file):
+        raise RuntimeError(f"'{stock_file}' é uma pasta, mas devia ser um ficheiro.")
+
+    if not os.path.exists(stock_file):
+        with open(stock_file, "w", encoding="utf-8") as f:
             json.dump(DEFAULT_DATA, f, indent=2, ensure_ascii=False)
 
 
-def load_data():
-    ensure_data_file()
-    with open(STOCK_FILE, "r", encoding="utf-8") as f:
+def load_data(username):
+    ensure_data_file(username)
+    stock_file = get_stock_file(username)
+
+    with open(stock_file, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def save_data(data):
-    with open(STOCK_FILE, "w", encoding="utf-8") as f:
+def save_data(username, data):
+    stock_file = get_stock_file(username)
+
+    with open(stock_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
@@ -41,8 +52,8 @@ def generate_expense_id(expenses):
     return max(exp["id"] for exp in expenses) + 1
 
 
-def add_item(form):
-    data = load_data()
+def add_item(username, form):
+    data = load_data(username)
     items = data["items"]
 
     quantity = int(form["quantity"])
@@ -65,11 +76,11 @@ def add_item(form):
     }
 
     items.append(item)
-    save_data(data)
+    save_data(username, data)
 
 
-def mark_as_sold(item_id, sold_price, sold_date):
-    data = load_data()
+def mark_as_sold(username, item_id, sold_price, sold_date):
+    data = load_data(username)
 
     for item in data["items"]:
         if item["id"] == item_id:
@@ -78,28 +89,41 @@ def mark_as_sold(item_id, sold_price, sold_date):
             item["sold_date"] = sold_date
             break
 
-    save_data(data)
+    save_data(username, data)
 
 
-def update_status(item_id, new_status):
-    data = load_data()
+def update_status(username, item_id, new_status):
+    data = load_data(username)
 
     for item in data["items"]:
         if item["id"] == item_id:
             item["status"] = new_status
             break
 
-    save_data(data)
+    save_data(username, data)
 
 
-def delete_item(item_id):
-    data = load_data()
+def delete_item(username, item_id):
+    data = load_data(username)
     data["items"] = [item for item in data["items"] if item["id"] != item_id]
-    save_data(data)
+    save_data(username, data)
 
 
-def add_expense(form):
-    data = load_data()
+def revert_sold(username, item_id):
+    data = load_data(username)
+
+    for item in data["items"]:
+        if item["id"] == item_id:
+            item["status"] = "Comprado"
+            item["sold_price"] = None
+            item["sold_date"] = None
+            break
+
+    save_data(username, data)
+
+
+def add_expense(username, form):
+    data = load_data(username)
     expenses = data["expenses"]
 
     expense = {
@@ -113,17 +137,17 @@ def add_expense(form):
     }
 
     expenses.append(expense)
-    save_data(data)
+    save_data(username, data)
 
 
-def delete_expense(expense_id):
-    data = load_data()
+def delete_expense(username, expense_id):
+    data = load_data(username)
     data["expenses"] = [exp for exp in data["expenses"] if exp["id"] != expense_id]
-    save_data(data)
+    save_data(username, data)
 
 
-def get_stock_page_data():
-    data = load_data()
+def get_stock_page_data(username):
+    data = load_data(username)
     items = data["items"]
     expenses = data["expenses"]
 
@@ -156,15 +180,3 @@ def get_stock_page_data():
         "total_revenue": round(total_revenue, 2),
         "gross_profit": round(gross_profit, 2)
     }
-
-def revert_sold(item_id):
-    data = load_data()
-
-    for item in data["items"]:
-        if item["id"] == item_id:
-            item["status"] = "Comprado"
-            item["sold_price"] = None
-            item["sold_date"] = None
-            break
-
-    save_data(data)

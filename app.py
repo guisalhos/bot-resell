@@ -97,7 +97,7 @@ def stock():
     if "user" not in session:
         return redirect("/")
 
-    stock_data = get_stock_page_data()
+    stock_data = get_stock_page_data(session["user"])
     return render_template("stock.html", **stock_data)
 
 
@@ -106,7 +106,7 @@ def stock_add_item():
     if "user" not in session:
         return redirect("/")
 
-    add_item(request.form)
+    add_item(session["user"], request.form)
     return redirect("/stock")
 
 
@@ -117,7 +117,7 @@ def stock_mark_sold(item_id):
 
     sold_price = request.form["sold_price"]
     sold_date = request.form["sold_date"]
-    mark_as_sold(item_id, sold_price, sold_date)
+    mark_as_sold(session["user"], item_id, sold_price, sold_date)
     return redirect("/stock")
 
 
@@ -127,7 +127,7 @@ def stock_update_status(item_id):
         return redirect("/")
 
     new_status = request.form["status"]
-    update_status(item_id, new_status)
+    update_status(session["user"], item_id, new_status)
     return redirect("/stock")
 
 
@@ -136,7 +136,7 @@ def stock_delete_item(item_id):
     if "user" not in session:
         return redirect("/")
 
-    delete_item(item_id)
+    delete_item(session["user"], item_id)
     return redirect("/stock")
 
 
@@ -145,7 +145,7 @@ def stock_add_expense():
     if "user" not in session:
         return redirect("/")
 
-    add_expense(request.form)
+    add_expense(session["user"], request.form)
     return redirect("/stock")
 
 
@@ -154,7 +154,7 @@ def stock_delete_expense(expense_id):
     if "user" not in session:
         return redirect("/")
 
-    delete_expense(expense_id)
+    delete_expense(session["user"], expense_id)
     return redirect("/stock")
 
 @app.route("/stock/revert-sold/<int:item_id>", methods=["POST"])
@@ -162,7 +162,7 @@ def stock_revert_sold(item_id):
     if "user" not in session:
         return redirect("/")
 
-    revert_sold(item_id)
+    revert_sold(session["user"], item_id)
     return redirect("/stock")
 
 if __name__ == "__main__":
