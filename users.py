@@ -1,4 +1,4 @@
 users= {
-    "gui": "1234",
+    "guialhos": "1",
     "goncas": "ferrero",
 }
