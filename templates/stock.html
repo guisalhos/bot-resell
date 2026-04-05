@@ -175,12 +175,12 @@
           {% for sale in sold_items %}
           <tr>
             <td>{{ sale.name }}</td>
-            <td>{{ sale.quantity_sold }}</td>
-            <td>{{ sale.buy_date }}</td>
             <td>{{ sale.buy_price }}€</td>
-            <td>{{ sale.sold_date }}</td>
             <td>{{ sale.sold_price }}€</td>
             <td>{{ ((sale.sold_price * sale.quantity_sold) - (sale.buy_price * sale.quantity_sold))|round(2) }}€</td>
+            <td>{{ sale.quantity_sold }}</td>
+            <td>{{ sale.buy_date }}</td>
+            <td>{{ sale.sold_date }}</td>
             <td class="actions-cell">
               <form method="POST" action="/stock/revert-sale/{{ sale.id }}" class="inline-form">
                 <button type="submit" class="secondary-btn">Voltar para stock</button>
