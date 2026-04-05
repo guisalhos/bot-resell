@@ -130,7 +130,14 @@
               <td colspan="11">
                 <form method="POST" action="/stock/mark-sold/{{ item.id }}" class="sold-form">
                   <strong>Marcar como vendido:</strong>
-                  <input type="number" min="1" max="{{ item.quantity }}" name="sold_quantity" placeholder="Quantidade vendida" required>
+
+                  {% if item.quantity > 1 %}
+                    <input type="number" min="1" max="{{ item.quantity }}" name="sold_quantity" placeholder="Quantidade vendida" required>
+                  {% else %}
+                    <input type="hidden" name="sold_quantity" value="1">
+                    <span class="single-qty-label">Quantidade vendida: 1</span>
+                  {% endif %}
+
                   <input type="number" step="0.01" min="0" name="sold_price" placeholder="Preço de venda por peça" required>
                   <input type="date" name="sold_date" required>
                   <button type="submit">Guardar venda</button>
