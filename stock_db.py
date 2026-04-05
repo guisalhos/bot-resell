@@ -3,7 +3,6 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-
 class StockItem(db.Model):
     __tablename__ = "stock_items"
 
