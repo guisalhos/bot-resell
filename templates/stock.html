@@ -130,6 +130,7 @@
               <td colspan="11">
                 <form method="POST" action="/stock/mark-sold/{{ item.id }}" class="sold-form">
                   <strong>Marcar como vendido:</strong>
+                  <input type="number" min="1" max="{{ item.quantity }}" name="sold_quantity" placeholder="Quantidade vendida" required>
                   <input type="number" step="0.01" min="0" name="sold_price" placeholder="Preço de venda por peça" required>
                   <input type="date" name="sold_date" required>
                   <button type="submit">Guardar venda</button>
@@ -146,7 +147,7 @@
   </div>
 
   <!-- VENDIDAS -->
-  <div class="section-card">
+<div class="section-card">
   <h2>Peças vendidas</h2>
 
   {% if sold_items %}
@@ -155,7 +156,7 @@
         <thead>
           <tr>
             <th>Nome</th>
-            <th>Qtd</th>
+            <th>Qtd vendida</th>
             <th>Data compra</th>
             <th>Preço pago</th>
             <th>Data venda</th>
@@ -165,21 +166,21 @@
           </tr>
         </thead>
         <tbody>
-          {% for item in sold_items %}
+          {% for sale in sold_items %}
           <tr>
-            <td>{{ item.name }}</td>
-            <td>{{ item.quantity }}</td>
-            <td>{{ item.buy_date }}</td>
-            <td>{{ item.buy_price }}€</td>
-            <td>{{ item.sold_date }}</td>
-            <td>{{ item.sold_price }}€</td>
-            <td>{{ ((item.sold_price * item.quantity) - (item.buy_price * item.quantity))|round(2) }}€</td>
+            <td>{{ sale.name }}</td>
+            <td>{{ sale.quantity_sold }}</td>
+            <td>{{ sale.buy_date }}</td>
+            <td>{{ sale.buy_price }}€</td>
+            <td>{{ sale.sold_date }}</td>
+            <td>{{ sale.sold_price }}€</td>
+            <td>{{ ((sale.sold_price * sale.quantity_sold) - (sale.buy_price * sale.quantity_sold))|round(2) }}€</td>
             <td class="actions-cell">
-              <form method="POST" action="/stock/revert-sold/{{ item.id }}" class="inline-form">
+              <form method="POST" action="/stock/revert-sale/{{ sale.id }}" class="inline-form">
                 <button type="submit" class="secondary-btn">Voltar para stock</button>
               </form>
 
-              <form method="POST" action="/stock/delete-item/{{ item.id }}" class="inline-form">
+              <form method="POST" action="/stock/delete-sale/{{ sale.id }}" class="inline-form">
                 <button type="submit" class="danger-btn">Apagar</button>
               </form>
             </td>
@@ -192,7 +193,6 @@
     <p>Ainda não tens peças vendidas.</p>
   {% endif %}
 </div>
-
   <!-- OUTRAS DESPESAS -->
   <div class="section-card">
     <h2>Outros materiais / despesas</h2>
