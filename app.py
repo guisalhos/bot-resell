@@ -31,9 +31,6 @@ db.init_app(app)
 with app.app_context():
     db.create_all()
 
-app = Flask(__name__)
-app.secret_key = "supersecretkey"
-
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
