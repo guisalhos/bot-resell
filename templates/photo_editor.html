@@ -1,10 +1,103 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trocador de Fundo</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor de Fotos</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    .photo-editor-wrap {
+      max-width: 1100px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    .photo-card {
+      background: #111827;
+      border: 1px solid #243041;
+      border-radius: 18px;
+      padding: 20px;
+      margin-top: 20px;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .photo-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .photo-controls input,
+    .photo-controls select,
+    .photo-controls button {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #2e3a4d;
+      background: #0b1220;
+      color: white;
+      font-size: 15px;
+    }
+
+    .photo-controls button {
+      background: #166534;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .photo-controls button:hover {
+      opacity: 0.95;
+    }
+
+    .photo-preview-box {
+      background: #0b1220;
+      border: 1px solid #243041;
+      border-radius: 18px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .photo-preview-box img,
+    .photo-preview-box canvas {
+      max-width: 100%;
+      border-radius: 12px;
+    }
+
+    .status-text {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-top: 8px;
+      min-height: 20px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .download-btn {
+      display: inline-block;
+      margin-top: 16px;
+      padding: 12px 18px;
+      background: #166534;
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+      .photo-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 <body>
   <div class="navbar">
@@ -17,63 +110,198 @@
     <a href="/logout">Logout</a>
   </div>
 
-  <div class="container">
+  <div class="photo-editor-wrap">
     <h1>Trocador de Fundo</h1>
 
-    <form id="photoForm">
-      <input type="file" id="image" name="image" accept="image/*" required>
+    <div class="photo-card">
+      <div class="photo-grid">
+        <div class="photo-controls">
+          <label for="imageInput">Escolher imagem</label>
+          <input type="file" id="imageInput" accept="image/*" />
 
-      <select id="background" name="background">
-        <option value="industrial_1">Fundo industrial 1</option>
-        <option value="industrial_2">Fundo industrial 2</option>
-        <option value="industrial_3">Fundo industrial 3</option>
-      </select>
+          <label for="backgroundSelect">Escolher fundo</label>
+          <select id="backgroundSelect">
+            <option value="/static/backgrounds/industrial_1.jpg">Fundo industrial 1</option>
+            <option value="/static/backgrounds/industrial_2.jpg">Fundo industrial 2</option>
+            <option value="/static/backgrounds/industrial_3.jpg">Fundo industrial 3</option>
+          </select>
 
-      <button type="submit">Gerar imagem</button>
-    </form>
+          <button id="processBtn">Gerar imagem</button>
 
-    <div style="margin-top:20px;">
-      <img id="preview" style="max-width: 420px; display:none; border-radius:12px;">
+          <div class="status-text" id="statusText"></div>
+
+          <a id="downloadBtn" class="download-btn hidden" download="produto-editado.png">
+            Descarregar imagem
+          </a>
+        </div>
+
+        <div class="photo-preview-box">
+          <canvas id="resultCanvas" width="1200" height="1200"></canvas>
+        </div>
+      </div>
     </div>
-
-    <a id="downloadBtn" style="display:none; margin-top:16px;" download="produto-editado.png">Descarregar imagem</a>
   </div>
 
-  <script>
-    const form = document.getElementById("photoForm");
-    const preview = document.getElementById("preview");
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+
+    const imageInput = document.getElementById("imageInput");
+    const backgroundSelect = document.getElementById("backgroundSelect");
+    const processBtn = document.getElementById("processBtn");
+    const statusText = document.getElementById("statusText");
     const downloadBtn = document.getElementById("downloadBtn");
+    const canvas = document.getElementById("resultCanvas");
+    const ctx = canvas.getContext("2d");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    const CANVAS_SIZE = 1200;
+    const SAFE_AREA = 920;
 
-      const fileInput = document.getElementById("image");
-      const background = document.getElementById("background").value;
+    let remover = null;
 
-      const formData = new FormData();
-      formData.append("image", fileInput.files[0]);
-      formData.append("background", background);
-
-      const response = await fetch("/api/photo-editor", {
-        method: "POST",
-        body: formData
-      });
-
-    if (!response.ok) {
-        const errorData = await response.json();
-        alert(errorData.error || "Erro ao processar a imagem.");
-        return;
+    function setStatus(text) {
+      statusText.textContent = text;
     }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
 
-      preview.src = url;
-      preview.style.display = "block";
+    function loadImageFromUrl(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
 
-      downloadBtn.href = url;
-      downloadBtn.style.display = "inline-block";
-    });
+    function blobToImage(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    async function getRemover() {
+      if (!remover) {
+        setStatus("A carregar modelo de remoção de fundo...");
+        remover = await pipeline(
+          "background-removal",
+          "Xenova/modnet",
+          { device: "webgpu" }
+        ).catch(async () => {
+          return await pipeline(
+            "background-removal",
+            "Xenova/modnet"
+          );
+        });
+      }
+      return remover;
+    }
+
+    function drawCheckerboard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawShadowCentered(img, x, y, width, height) {
+      const shadowCanvas = document.createElement("canvas");
+      shadowCanvas.width = width;
+      shadowCanvas.height = height;
+      const sctx = shadowCanvas.getContext("2d");
+
+      sctx.drawImage(img, 0, 0, width, height);
+      sctx.globalCompositeOperation = "source-in";
+      sctx.fillStyle = "rgba(0,0,0,0.32)";
+      sctx.fillRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.filter = "blur(16px)";
+      ctx.drawImage(shadowCanvas, x + 18, y + 22, width, height);
+      ctx.restore();
+    }
+
+    function drawComposed(backgroundImg, subjectImg) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.drawImage(backgroundImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+      const ratio = Math.min(
+        SAFE_AREA / subjectImg.width,
+        SAFE_AREA / subjectImg.height
+      );
+
+      const drawWidth = Math.round(subjectImg.width * ratio);
+      const drawHeight = Math.round(subjectImg.height * ratio);
+
+      const x = Math.round((CANVAS_SIZE - drawWidth) / 2);
+      const y = Math.round((CANVAS_SIZE - drawHeight) / 2);
+
+      drawShadowCentered(subjectImg, x, y, drawWidth, drawHeight);
+      ctx.drawImage(subjectImg, x, y, drawWidth, drawHeight);
+    }
+
+    async function processImage() {
+      try {
+        const file = imageInput.files[0];
+        if (!file) {
+          alert("Escolhe uma imagem primeiro.");
+          return;
+        }
+
+        processBtn.disabled = true;
+        downloadBtn.classList.add("hidden");
+        setStatus("A preparar imagem...");
+
+        const backgroundImg = await loadImageFromUrl(backgroundSelect.value);
+        const originalImg = await loadImageFromFile(file);
+
+        drawCheckerboard();
+        ctx.drawImage(originalImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+        const segmenter = await getRemover();
+
+        setStatus("A remover fundo no teu dispositivo...");
+        const output = await segmenter(file);
+
+        const blob = await output[0].toBlob();
+        const transparentSubject = await blobToImage(blob);
+
+        setStatus("A compor imagem final...");
+        drawComposed(backgroundImg, transparentSubject);
+
+        const finalUrl = canvas.toDataURL("image/png");
+        downloadBtn.href = finalUrl;
+        downloadBtn.classList.remove("hidden");
+
+        setStatus("Imagem pronta.");
+      } catch (error) {
+        console.error(error);
+        setStatus("");
+        alert("Erro ao processar a imagem no browser. Experimenta uma imagem mais pequena ou outro dispositivo.");
+      } finally {
+        processBtn.disabled = false;
+      }
+    }
+
+    processBtn.addEventListener("click", processImage);
   </script>
 </body>
 </html>
