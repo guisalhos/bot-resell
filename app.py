@@ -340,6 +340,7 @@ def stock_delete_expense(expense_id):
     db.session.commit()
     return redirect("/stock")
 
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 @app.route("/photo-editor")
 def photo_editor():
     if "user" not in session:
