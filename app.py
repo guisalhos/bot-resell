@@ -12,6 +12,9 @@ from stock_manager import (
     delete_expense,
     revert_sold
 )
+from flask import send_file, jsonify
+from io import BytesIO
+from image_utils import process_image
 
 from motor import bot_inicio, bot_prompt, bot_processar
 
@@ -336,6 +339,34 @@ def stock_delete_expense(expense_id):
     db.session.delete(expense)
     db.session.commit()
     return redirect("/stock")
+
+@app.route("/photo-editor")
+def photo_editor():
+    if "user" not in session:
+        return redirect("/")
+
+    return render_template("photo_editor.html")
+
+@app.route("/api/photo-editor", methods=["POST"])
+def api_photo_editor():
+    if "user" not in session:
+        return redirect("/")
+
+    if "image" not in request.files:
+        return jsonify({"error": "Imagem não enviada"}), 400
+
+    file = request.files["image"]
+    background = request.form.get("background", "industrial_1")
+
+    try:
+        result_bytes = process_image(file.read(), background)
+        return send_file(
+            BytesIO(result_bytes),
+            mimetype="image/png",
+            as_attachment=False
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run()

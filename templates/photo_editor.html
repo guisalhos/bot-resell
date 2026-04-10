@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trocador de Fundo</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-left">
+      <h3>Bot Resell</h3>
+      <a class="navlink" href="/dashboard">Avaliação</a>
+      <a class="navlink" href="/stock">Gestão de Stock</a>
+      <a class="navlink active" href="/photo-editor">Editor de Fotos</a>
+    </div>
+    <a href="/logout">Logout</a>
+  </div>
+
+  <div class="container">
+    <h1>Trocador de Fundo</h1>
+
+    <form id="photoForm">
+      <input type="file" id="image" name="image" accept="image/*" required>
+
+      <select id="background" name="background">
+        <option value="industrial_1">Fundo industrial 1</option>
+        <option value="industrial_2">Fundo industrial 2</option>
+        <option value="industrial_3">Fundo industrial 3</option>
+      </select>
+
+      <button type="submit">Gerar imagem</button>
+    </form>
+
+    <div style="margin-top:20px;">
+      <img id="preview" style="max-width: 420px; display:none; border-radius:12px;">
+    </div>
+
+    <a id="downloadBtn" style="display:none; margin-top:16px;" download="produto-editado.png">Descarregar imagem</a>
+  </div>
+
+  <script>
+    const form = document.getElementById("photoForm");
+    const preview = document.getElementById("preview");
+    const downloadBtn = document.getElementById("downloadBtn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const fileInput = document.getElementById("image");
+      const background = document.getElementById("background").value;
+
+      const formData = new FormData();
+      formData.append("image", fileInput.files[0]);
+      formData.append("background", background);
+
+      const response = await fetch("/api/photo-editor", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        alert("Erro ao processar a imagem.");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      preview.src = url;
+      preview.style.display = "block";
+
+      downloadBtn.href = url;
+      downloadBtn.style.display = "inline-block";
+    });
+  </script>
+</body>
+</html>
