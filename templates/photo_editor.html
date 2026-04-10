@@ -59,10 +59,11 @@
         body: formData
       });
 
-      if (!response.ok) {
-        alert("Erro ao processar a imagem.");
+    if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error || "Erro ao processar a imagem.");
         return;
-      }
+    }
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
