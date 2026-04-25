@@ -505,7 +505,7 @@ def avaliar_bundle():
 
 if __name__ == "__main__":
 
-    print("Queres avaliar:")
+    print("Queres avaliar:\n")
     print("1️⃣  Peça individual")
     print("2️⃣  Bundle Fleek")
 
