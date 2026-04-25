@@ -280,7 +280,7 @@
   </div>
 
   <div class="photo-editor-wrap">
-    <h1 class="photo-title">Trocador de Fundo</h1>
+    <h1 class="photo-title">Background Change</h1>
 
     <div class="photo-card">
       <div class="photo-grid">
@@ -312,25 +312,51 @@
               <input type="checkbox" id="detailMode" />
               <div class="checkbox-text">
                 <span class="checkbox-title">Modo detalhe</span>
-                <span class="checkbox-subtitle">Mais lento. Faz crop mais apertado e mais passagens. Melhor para imagens difíceis.</span>
+                <span class="checkbox-subtitle">Melhor para fotos mais próximas da peça ou quando só é preciso remover pequenas zonas do fundo.</span>
               </div>
             </label>
           </div>
 
           <button class="photo-button" id="processBtn" type="button">Gerar imagem</button>
+          <button class="photo-button secondary-button hidden" id="openEditorBtn" type="button">Abrir editor</button>
 
           <div class="status-text" id="statusText"></div>
 
           <a id="downloadBtn" class="photo-button secondary-button hidden" href="#">Guardar imagem</a>
 
           <div class="tips-box">
-            Para resultados melhores: usa a peça mais isolada possível na foto, com menos chão à volta. Em imagens difíceis, ativa o modo detalhe.
+            Para melhores resultados, tira a foto com boa luz, a peça bem visível, sem objetos por perto e com o fundo o mais simples possível. Se a foto estiver mais próxima da peça ou se só for preciso limpar pequenas zonas do fundo, ativa o modo detalhe.
           </div>
         </div>
 
         <div class="photo-preview-box">
           <div class="canvas-wrap">
             <canvas id="resultCanvas" width="1200" height="1200"></canvas>
+          </div>
+
+          <div id="editorPanel" class="hidden" style="margin-top:14px;">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+              <button class="photo-button" id="editEraseBtn" type="button" style="flex:1;">Apagar</button>
+              <button class="photo-button secondary-button" id="editRestoreBtn" type="button" style="flex:1;">Recuperar</button>
+              <button class="photo-button secondary-button" id="editZoomBtn" type="button" style="flex:1;">Zoom</button>
+              <button class="photo-button secondary-button" id="closeEditorBtn" type="button" style="flex:1;">Fechar editor</button>
+            </div>
+
+            <div class="range-wrap" style="margin-bottom:12px;">
+              <div class="range-top">
+                <span>Tamanho do pincel</span>
+                <span class="range-value" id="brushSizeValue">30</span>
+              </div>
+              <input class="photo-range" type="range" id="brushSizeSlider" min="10" max="120" step="1" value="30" />
+            </div>
+
+            <div class="range-wrap">
+              <div class="range-top">
+                <span>Zoom do editor</span>
+                <span class="range-value" id="editorZoomValue">100%</span>
+              </div>
+              <input class="photo-range" type="range" id="editorZoomSlider" min="1" max="3" step="0.05" value="1" />
+            </div>
           </div>
         </div>
       </div>
@@ -345,28 +371,75 @@
     const processBtn = document.getElementById("processBtn");
     const statusText = document.getElementById("statusText");
     const downloadBtn = document.getElementById("downloadBtn");
+    const openEditorBtn = document.getElementById("openEditorBtn");
+
     const canvas = document.getElementById("resultCanvas");
     const ctx = canvas.getContext("2d");
+
     const scaleSlider = document.getElementById("scaleSlider");
     const scaleValue = document.getElementById("scaleValue");
     const detailMode = document.getElementById("detailMode");
+
+    const editorPanel = document.getElementById("editorPanel");
+    const editEraseBtn = document.getElementById("editEraseBtn");
+    const editRestoreBtn = document.getElementById("editRestoreBtn");
+    const editZoomBtn = document.getElementById("editZoomBtn");
+    const closeEditorBtn = document.getElementById("closeEditorBtn");
+    const brushSizeSlider = document.getElementById("brushSizeSlider");
+    const brushSizeValue = document.getElementById("brushSizeValue");
+    const editorZoomSlider = document.getElementById("editorZoomSlider");
+    const editorZoomValue = document.getElementById("editorZoomValue");
 
     const CANVAS_SIZE = 1200;
     const BASE_SAFE_AREA = 880;
 
     let remover = null;
     let lastBackgroundImg = null;
-    let lastSubjectImg = null;
+    let lastSubjectCanvas = null;
     let lastFinalBlob = null;
 
+    let editorMode = "erase";
+    let isDrawing = false;
+    let editorZoom = 1;
+    let brushSize = 30;
+
     scaleSlider.addEventListener("input", async () => {
-      const pct = Math.round(parseFloat(scaleSlider.value) * 100);
-      scaleValue.textContent = pct + "%";
-      if (lastBackgroundImg && lastSubjectImg) {
-        drawComposed(lastBackgroundImg, lastSubjectImg);
+      scaleValue.textContent = Math.round(parseFloat(scaleSlider.value) * 100) + "%";
+      if (lastBackgroundImg && lastSubjectCanvas) {
+        drawComposed(lastBackgroundImg, lastSubjectCanvas);
         await updateDownloadBlob();
       }
     });
+
+    brushSizeSlider.addEventListener("input", () => {
+      brushSize = parseInt(brushSizeSlider.value, 10);
+      brushSizeValue.textContent = brushSize;
+    });
+
+    editorZoomSlider.addEventListener("input", () => {
+      editorZoom = parseFloat(editorZoomSlider.value);
+      editorZoomValue.textContent = Math.round(editorZoom * 100) + "%";
+    });
+
+    editEraseBtn.addEventListener("click", () => editorMode = "erase");
+    editRestoreBtn.addEventListener("click", () => editorMode = "restore");
+    editZoomBtn.addEventListener("click", () => editorMode = "zoom");
+
+    openEditorBtn.addEventListener("click", () => {
+      editorPanel.classList.remove("hidden");
+    });
+
+    closeEditorBtn.addEventListener("click", async () => {
+      editorPanel.classList.add("hidden");
+      if (lastBackgroundImg && lastSubjectCanvas) {
+        drawComposed(lastBackgroundImg, lastSubjectCanvas);
+        await updateDownloadBlob();
+      }
+    });
+
+    function isMobile() {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    }
 
     function setStatus(text) {
       statusText.textContent = text;
@@ -541,9 +614,9 @@
       const width = c.width;
       const height = c.height;
 
-      const lowCut = aggressive ? 30 : 18;
-      const midCut = aggressive ? 85 : 60;
-      const midFactor = aggressive ? 0.55 : 0.7;
+      const lowCut = aggressive ? 14 : 18;
+      const midCut = aggressive ? 60 : 70;
+      const midFactor = aggressive ? 0.78 : 0.72;
 
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -564,10 +637,10 @@
       softened.width = c.width;
       softened.height = c.height;
       const sctx = softened.getContext("2d");
-      sctx.filter = aggressive ? "blur(0.6px)" : "blur(0.8px)";
+      sctx.filter = aggressive ? "blur(0.35px)" : "blur(0.7px)";
       sctx.drawImage(c, 0, 0);
 
-      return trimTransparentCanvas(softened, aggressive ? 12 : 8);
+      return trimTransparentCanvas(softened, aggressive ? 6 : 8);
     }
 
     function previewOriginal(img) {
@@ -623,7 +696,7 @@
       ctx.restore();
     }
 
-    function drawComposed(backgroundImg, subjectImg) {
+    function drawComposed(backgroundImg, subjectCanvas) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(backgroundImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
@@ -631,18 +704,18 @@
       const safeArea = BASE_SAFE_AREA * scaleFactor;
 
       const ratio = Math.min(
-        safeArea / subjectImg.width,
-        safeArea / subjectImg.height
+        safeArea / subjectCanvas.width,
+        safeArea / subjectCanvas.height
       );
 
-      const drawWidth = Math.round(subjectImg.width * ratio);
-      const drawHeight = Math.round(subjectImg.height * ratio);
+      const drawWidth = Math.round(subjectCanvas.width * ratio);
+      const drawHeight = Math.round(subjectCanvas.height * ratio);
 
       const x = Math.round((CANVAS_SIZE - drawWidth) / 2);
       const y = Math.round((CANVAS_SIZE - drawHeight) / 2);
 
-      drawShadowCentered(subjectImg, x, y, drawWidth, drawHeight);
-      ctx.drawImage(subjectImg, x, y, drawWidth, drawHeight);
+      drawShadowCentered(subjectCanvas, x, y, drawWidth, drawHeight);
+      ctx.drawImage(subjectCanvas, x, y, drawWidth, drawHeight);
     }
 
     async function updateDownloadBlob() {
@@ -650,34 +723,113 @@
       downloadBtn.classList.remove("hidden");
     }
 
-    async function saveImageMobileFriendly() {
+    async function saveImage() {
       if (!lastFinalBlob) {
         lastFinalBlob = await canvasToBlob(canvas);
       }
 
-      const file = new File([lastFinalBlob], "produto-editado.png", { type: "image/png" });
+      if (isMobile()) {
+        const file = new File([lastFinalBlob], "produto-editado.png", { type: "image/png" });
 
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: "Imagem editada"
-          });
-          return;
-        } catch (e) {
-          return;
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "Imagem editada"
+            });
+            return;
+          } catch (e) {
+            return;
+          }
         }
+
+        const url = URL.createObjectURL(lastFinalBlob);
+        window.open(url, "_blank");
+        return;
       }
 
       const url = URL.createObjectURL(lastFinalBlob);
-      window.open(url, "_blank");
-
       const a = document.createElement("a");
       a.href = url;
       a.download = "produto-editado.png";
       document.body.appendChild(a);
       a.click();
       a.remove();
+    }
+
+    function getCanvasPointerPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const x = ((clientX - rect.left) / rect.width) * canvas.width;
+      const y = ((clientY - rect.top) / rect.height) * canvas.height;
+
+      return { x, y };
+    }
+
+    function applyBrushToSubject(pointerX, pointerY) {
+      if (!lastSubjectCanvas || !lastBackgroundImg) return;
+
+      const scaleFactor = parseFloat(scaleSlider.value);
+      const safeArea = BASE_SAFE_AREA * scaleFactor;
+      const ratio = Math.min(
+        safeArea / lastSubjectCanvas.width,
+        safeArea / lastSubjectCanvas.height
+      );
+
+      const drawWidth = Math.round(lastSubjectCanvas.width * ratio);
+      const drawHeight = Math.round(lastSubjectCanvas.height * ratio);
+      const drawX = Math.round((CANVAS_SIZE - drawWidth) / 2);
+      const drawY = Math.round((CANVAS_SIZE - drawHeight) / 2);
+
+      const localX = (pointerX - drawX) / ratio;
+      const localY = (pointerY - drawY) / ratio;
+
+      if (localX < 0 || localY < 0 || localX > lastSubjectCanvas.width || localY > lastSubjectCanvas.height) {
+        return;
+      }
+
+      const sctx = lastSubjectCanvas.getContext("2d");
+      sctx.save();
+
+      if (editorMode === "erase") {
+        sctx.globalCompositeOperation = "destination-out";
+        sctx.beginPath();
+        sctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
+        sctx.fill();
+      } else if (editorMode === "restore") {
+        sctx.globalCompositeOperation = "source-over";
+        sctx.beginPath();
+        sctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
+        sctx.fillStyle = "rgba(255,255,255,0.12)";
+        sctx.fill();
+      }
+
+      sctx.restore();
+      drawComposed(lastBackgroundImg, lastSubjectCanvas);
+    }
+
+    function startEdit(e) {
+      if (editorPanel.classList.contains("hidden")) return;
+      if (editorMode === "zoom") return;
+      isDrawing = true;
+      const pos = getCanvasPointerPosition(e);
+      applyBrushToSubject(pos.x, pos.y);
+    }
+
+    async function moveEdit(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      const pos = getCanvasPointerPosition(e);
+      applyBrushToSubject(pos.x, pos.y);
+      await updateDownloadBlob();
+    }
+
+    async function endEdit() {
+      if (!isDrawing) return;
+      isDrawing = false;
+      await updateDownloadBlob();
     }
 
     async function processImage() {
@@ -690,8 +842,10 @@
 
         processBtn.disabled = true;
         downloadBtn.classList.add("hidden");
+        openEditorBtn.classList.add("hidden");
+        editorPanel.classList.add("hidden");
         lastBackgroundImg = null;
-        lastSubjectImg = null;
+        lastSubjectCanvas = null;
         lastFinalBlob = null;
 
         const aggressive = detailMode.checked;
@@ -702,36 +856,36 @@
         setStatus("A preparar imagem...");
         const originalImg = await loadImageFromFile(file);
         previewOriginal(originalImg);
-        await sleep(250);
+        await sleep(220);
 
         const preCanvas = imageToCanvas(originalImg, aggressive ? 2200 : 1600);
 
         setStatus("Primeiro recorte...");
         const firstPass = await runSegmentation(preCanvas);
         previewIntermediate(firstPass, "Primeiro recorte");
-        await sleep(250);
+        await sleep(220);
 
-        const firstBounds = getAlphaBounds(firstPass, aggressive ? 12 : 20);
+        const firstBounds = getAlphaBounds(firstPass, aggressive ? 8 : 20);
 
         let workCanvas = firstBounds
-          ? cropImageWithMargin(preCanvas, firstBounds, aggressive ? 0.04 : 0.14)
+          ? cropImageWithMargin(preCanvas, firstBounds, aggressive ? 0.01 : 0.14)
           : preCanvas;
 
         setStatus("Segundo recorte...");
         const secondPass = await runSegmentation(workCanvas);
         previewIntermediate(secondPass, "A melhorar detalhes");
-        await sleep(250);
+        await sleep(220);
 
         let finalSubject = secondPass;
 
         if (aggressive) {
-          const secondBounds = getAlphaBounds(secondPass, 10);
+          const secondBounds = getAlphaBounds(secondPass, 6);
           if (secondBounds) {
-            const tighterCanvas = cropImageWithMargin(workCanvas, secondBounds, 0.02);
+            const tighterCanvas = cropImageWithMargin(workCanvas, secondBounds, 0.005);
             setStatus("Refinamento extra...");
             const thirdPass = await runSegmentation(tighterCanvas);
             previewIntermediate(thirdPass, "Refinamento final");
-            await sleep(220);
+            await sleep(180);
             finalSubject = thirdPass;
           }
         }
@@ -743,9 +897,10 @@
         drawComposed(backgroundImg, cleaned);
 
         lastBackgroundImg = backgroundImg;
-        lastSubjectImg = cleaned;
+        lastSubjectCanvas = cleaned;
 
         await updateDownloadBlob();
+        openEditorBtn.classList.remove("hidden");
         setStatus("Imagem pronta.");
       } catch (error) {
         console.error("ERRO COMPLETO:", error);
@@ -759,8 +914,16 @@
     processBtn.addEventListener("click", processImage);
     downloadBtn.addEventListener("click", async (e) => {
       e.preventDefault();
-      await saveImageMobileFriendly();
+      await saveImage();
     });
+
+    canvas.addEventListener("mousedown", startEdit);
+    canvas.addEventListener("mousemove", moveEdit);
+    window.addEventListener("mouseup", endEdit);
+
+    canvas.addEventListener("touchstart", startEdit, { passive: false });
+    canvas.addEventListener("touchmove", moveEdit, { passive: false });
+    window.addEventListener("touchend", endEdit);
   </script>
 </body>
 </html>
