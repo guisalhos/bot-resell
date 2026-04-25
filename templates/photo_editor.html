@@ -6,24 +6,34 @@
   <title>Editor de Fotos</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     .photo-editor-wrap {
-      max-width: 1100px;
-      margin: 30px auto;
-      padding: 20px;
+      max-width: 1120px;
+      margin: 24px auto;
+      padding: 16px;
+    }
+
+    .photo-title {
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 18px;
+      color: #f8fafc;
     }
 
     .photo-card {
-      background: #111827;
-      border: 1px solid #243041;
-      border-radius: 18px;
-      padding: 20px;
-      margin-top: 20px;
+      background: #091326;
+      border: 1px solid #1f2d45;
+      border-radius: 22px;
+      padding: 18px;
     }
 
     .photo-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 20px;
       align-items: start;
     }
 
@@ -31,87 +41,229 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
+      min-width: 0;
     }
 
-    .photo-controls input,
-    .photo-controls select,
-    .photo-controls button {
+    .form-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       width: 100%;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid #2e3a4d;
-      background: #0b1220;
-      color: white;
-      font-size: 15px;
     }
 
-    .photo-controls button {
-      background: #166534;
-      border: none;
+    .form-label {
+      color: #cbd5e1;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .photo-input,
+    .photo-select,
+    .photo-button {
+      width: 100%;
+      min-width: 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid #24344f;
+      background: #07101f;
+      color: #f8fafc;
+      font-size: 16px;
+    }
+
+    .photo-input::file-selector-button {
+      margin-right: 12px;
+      border: 0;
+      background: #1d4ed8;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
     }
 
-    .photo-controls button:hover {
-      opacity: 0.95;
-    }
-
-    .photo-preview-box {
-      background: #0b1220;
-      border: 1px solid #243041;
-      border-radius: 18px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .photo-preview-box canvas {
-      max-width: 100%;
-      border-radius: 12px;
-    }
-
-    .status-text {
-      color: #cbd5e1;
-      font-size: 14px;
-      margin-top: 8px;
-      min-height: 20px;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .download-btn {
-      display: inline-block;
-      margin-top: 16px;
-      padding: 12px 18px;
+    .photo-button {
+      border: 0;
       background: #166534;
-      color: white;
-      text-decoration: none;
-      border-radius: 12px;
-      font-weight: 600;
-      text-align: center;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.12s ease, opacity 0.12s ease;
     }
 
-    .range-group {
+    .photo-button:hover {
+      opacity: 0.96;
+    }
+
+    .photo-button:active {
+      transform: scale(0.995);
+    }
+
+    .secondary-button {
+      background: #14532d;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .range-wrap {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      margin-top: 4px;
+      gap: 8px;
+      width: 100%;
     }
 
-    .range-label {
+    .range-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
       color: #cbd5e1;
-      font-size: 14px;
+      font-size: 15px;
+      font-weight: 600;
     }
 
     .range-value {
-      color: #9ca3af;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .photo-range {
+      width: 100%;
+    }
+
+    .checkbox-card {
+      width: 100%;
+      border: 1px solid #24344f;
+      background: #07101f;
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      margin-top: 2px;
+      flex: 0 0 auto;
+    }
+
+    .checkbox-text {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+
+    .checkbox-title {
+      color: #f8fafc;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .checkbox-subtitle {
+      color: #94a3b8;
       font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .status-text {
+      min-height: 22px;
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    .tips-box {
+      border: 1px solid #24344f;
+      background: #07101f;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .photo-preview-box {
+      background: #07101f;
+      border: 1px solid #1f2d45;
+      border-radius: 22px;
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #050b16;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #18263d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .canvas-wrap canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     @media (max-width: 900px) {
+      .photo-title {
+        font-size: 32px;
+      }
+
       .photo-grid {
         grid-template-columns: 1fr;
+      }
+
+      .photo-card {
+        padding: 14px;
+      }
+
+      .photo-preview-box {
+        order: 2;
+      }
+
+      .photo-controls {
+        order: 1;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .photo-editor-wrap {
+        padding: 12px;
+      }
+
+      .photo-title {
+        font-size: 26px;
+      }
+
+      .photo-input,
+      .photo-select,
+      .photo-button {
+        font-size: 16px;
+        padding: 14px;
+      }
+
+      .checkbox-row {
+        align-items: center;
+      }
+
+      .checkbox-subtitle {
+        font-size: 12px;
       }
     }
   </style>
@@ -128,464 +280,487 @@
   </div>
 
   <div class="photo-editor-wrap">
-    <h1>Trocador de Fundo</h1>
+    <h1 class="photo-title">Trocador de Fundo</h1>
 
     <div class="photo-card">
       <div class="photo-grid">
         <div class="photo-controls">
-          <label for="imageInput">Escolher imagem</label>
-          <input type="file" id="imageInput" accept="image/*" />
-
-          <label for="backgroundSelect">Escolher fundo</label>
-          <select id="backgroundSelect">
-            <option value="/static/backgrounds/industrial_1.png">Fundo industrial 1</option>
-            <option value="/static/backgrounds/industrial_2.png">Fundo industrial 2</option>
-            <option value="/static/backgrounds/industrial_3.png">Fundo industrial 3</option>
-          </select>
-
-          <div class="range-group">
-            <label class="range-label" for="scaleSlider">Tamanho da peça</label>
-            <input type="range" id="scaleSlider" min="0.75" max="1.35" step="0.01" value="1.00" />
-            <div class="range-value" id="scaleValue">100%</div>
+          <div class="form-block">
+            <label class="form-label" for="imageInput">Escolher imagem</label>
+            <input class="photo-input" type="file" id="imageInput" accept="image/*" />
           </div>
 
-          <button id="processBtn">Gerar imagem</button>
+          <div class="form-block">
+            <label class="form-label" for="backgroundSelect">Escolher fundo</label>
+            <select class="photo-select" id="backgroundSelect">
+              <option value="/static/backgrounds/industrial_1.png">Fundo industrial 1</option>
+              <option value="/static/backgrounds/industrial_2.png">Fundo industrial 2</option>
+              <option value="/static/backgrounds/industrial_3.png">Fundo industrial 3</option>
+            </select>
+          </div>
+
+          <div class="range-wrap">
+            <div class="range-top">
+              <span>Tamanho da peça</span>
+              <span class="range-value" id="scaleValue">100%</span>
+            </div>
+            <input class="photo-range" type="range" id="scaleSlider" min="0.75" max="1.35" step="0.01" value="1.00" />
+          </div>
+
+          <div class="checkbox-card">
+            <label class="checkbox-row" for="detailMode">
+              <input type="checkbox" id="detailMode" />
+              <div class="checkbox-text">
+                <span class="checkbox-title">Modo detalhe</span>
+                <span class="checkbox-subtitle">Mais lento. Faz crop mais apertado e mais passagens. Melhor para imagens difíceis.</span>
+              </div>
+            </label>
+          </div>
+
+          <button class="photo-button" id="processBtn" type="button">Gerar imagem</button>
 
           <div class="status-text" id="statusText"></div>
 
-          <a id="downloadBtn" class="download-btn hidden" href="#">
-            Guardar imagem
-          </a>
+          <a id="downloadBtn" class="photo-button secondary-button hidden" href="#">Guardar imagem</a>
+
+          <div class="tips-box">
+            Para resultados melhores: usa a peça mais isolada possível na foto, com menos chão à volta. Em imagens difíceis, ativa o modo detalhe.
+          </div>
         </div>
 
         <div class="photo-preview-box">
-          <canvas id="resultCanvas" width="1200" height="1200"></canvas>
+          <div class="canvas-wrap">
+            <canvas id="resultCanvas" width="1200" height="1200"></canvas>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-<script type="module">
-  import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
+  <script type="module">
+    import { pipeline } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2";
 
-  const imageInput = document.getElementById("imageInput");
-  const backgroundSelect = document.getElementById("backgroundSelect");
-  const processBtn = document.getElementById("processBtn");
-  const statusText = document.getElementById("statusText");
-  const downloadBtn = document.getElementById("downloadBtn");
-  const canvas = document.getElementById("resultCanvas");
-  const ctx = canvas.getContext("2d");
-  const scaleSlider = document.getElementById("scaleSlider");
-  const scaleValue = document.getElementById("scaleValue");
+    const imageInput = document.getElementById("imageInput");
+    const backgroundSelect = document.getElementById("backgroundSelect");
+    const processBtn = document.getElementById("processBtn");
+    const statusText = document.getElementById("statusText");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const canvas = document.getElementById("resultCanvas");
+    const ctx = canvas.getContext("2d");
+    const scaleSlider = document.getElementById("scaleSlider");
+    const scaleValue = document.getElementById("scaleValue");
+    const detailMode = document.getElementById("detailMode");
 
-  const CANVAS_SIZE = 1200;
-  const SAFE_AREA = 900;
-  const PREPROCESS_MAX = 1600;
+    const CANVAS_SIZE = 1200;
+    const BASE_SAFE_AREA = 880;
 
-  let remover = null;
-  let lastBackgroundImg = null;
-  let lastSubjectImg = null;
-  let lastFinalBlob = null;
+    let remover = null;
+    let lastBackgroundImg = null;
+    let lastSubjectImg = null;
+    let lastFinalBlob = null;
 
-  // ---------- UI extra: modo detalhe ----------
-  const detailWrap = document.createElement("div");
-  detailWrap.className = "range-group";
-  detailWrap.innerHTML = `
-    <label class="range-label" style="display:flex;align-items:center;gap:10px;">
-      <input type="checkbox" id="detailMode" />
-      Modo detalhe (mais lento, melhor para imagens difíceis)
-    </label>
-  `;
-  scaleSlider.parentNode.insertAdjacentElement("afterend", detailWrap);
-  const detailMode = document.getElementById("detailMode");
+    scaleSlider.addEventListener("input", async () => {
+      const pct = Math.round(parseFloat(scaleSlider.value) * 100);
+      scaleValue.textContent = pct + "%";
+      if (lastBackgroundImg && lastSubjectImg) {
+        drawComposed(lastBackgroundImg, lastSubjectImg);
+        await updateDownloadBlob();
+      }
+    });
 
-  scaleSlider.addEventListener("input", async () => {
-    const pct = Math.round(parseFloat(scaleSlider.value) * 100);
-    scaleValue.textContent = pct + "%";
-    if (lastBackgroundImg && lastSubjectImg) {
-      drawComposed(lastBackgroundImg, lastSubjectImg);
-      await updateDownloadBlob();
+    function setStatus(text) {
+      statusText.textContent = text;
     }
-  });
 
-  function setStatus(text) {
-    statusText.textContent = text;
-  }
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
 
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+    function loadImageFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = reject;
+          img.src = reader.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
 
-  function loadImageFromFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
+    function loadImageFromUrl(url) {
+      return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = reject;
-        img.src = reader.result;
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function loadImageFromUrl(url) {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
-    });
-  }
-
-  function blobToImage(blob) {
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(img);
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-  }
-
-  function canvasToBlob(canvasEl) {
-    return new Promise((resolve) => {
-      canvasEl.toBlob((blob) => resolve(blob), "image/png");
-    });
-  }
-
-  function imageToCanvas(img, maxSize = PREPROCESS_MAX) {
-    const c = document.createElement("canvas");
-    const cctx = c.getContext("2d");
-
-    let w = img.width;
-    let h = img.height;
-
-    const ratio = Math.min(maxSize / w, maxSize / h, 1);
-    w = Math.round(w * ratio);
-    h = Math.round(h * ratio);
-
-    c.width = w;
-    c.height = h;
-    cctx.drawImage(img, 0, 0, w, h);
-    return c;
-  }
-
-  async function getRemover() {
-    if (!remover) {
-      setStatus("A carregar modelo...");
-      remover = await pipeline("background-removal", "Xenova/modnet");
+        img.src = url;
+      });
     }
-    return remover;
-  }
 
-  async function runSegmentation(input) {
-    const segmenter = await getRemover();
-    const output = await segmenter(input);
-    const blob = Array.isArray(output) ? await output[0].toBlob() : await output.toBlob();
-    return await blobToImage(blob);
-  }
+    function blobToImage(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(img);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
 
-  function getAlphaBounds(img, alphaThreshold = 20) {
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const cctx = c.getContext("2d");
-    cctx.drawImage(img, 0, 0);
+    function canvasToBlob(canvasEl) {
+      return new Promise((resolve) => {
+        canvasEl.toBlob((blob) => resolve(blob), "image/png");
+      });
+    }
 
-    const { data, width, height } = cctx.getImageData(0, 0, c.width, c.height);
+    function imageToCanvas(img, maxSize) {
+      const c = document.createElement("canvas");
+      const cctx = c.getContext("2d");
 
-    let minX = width;
-    let minY = height;
-    let maxX = -1;
-    let maxY = -1;
+      let w = img.width;
+      let h = img.height;
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        const alpha = data[i + 3];
-        if (alpha > alphaThreshold) {
-          if (x < minX) minX = x;
-          if (y < minY) minY = y;
-          if (x > maxX) maxX = x;
-          if (y > maxY) maxY = y;
+      const ratio = Math.min(maxSize / w, maxSize / h, 1);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+
+      c.width = w;
+      c.height = h;
+      cctx.drawImage(img, 0, 0, w, h);
+      return c;
+    }
+
+    async function getRemover() {
+      if (!remover) {
+        setStatus("A carregar modelo...");
+        remover = await pipeline("background-removal", "Xenova/modnet");
+      }
+      return remover;
+    }
+
+    async function runSegmentation(input) {
+      const segmenter = await getRemover();
+      const output = await segmenter(input);
+      const blob = Array.isArray(output) ? await output[0].toBlob() : await output.toBlob();
+      return await blobToImage(blob);
+    }
+
+    function getAlphaBounds(img, alphaThreshold = 20) {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, 0, 0);
+
+      const imageData = cctx.getImageData(0, 0, c.width, c.height);
+      const data = imageData.data;
+      const width = c.width;
+      const height = c.height;
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const alpha = data[i + 3];
+          if (alpha > alphaThreshold) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
         }
       }
+
+      if (maxX === -1 || maxY === -1) return null;
+
+      return {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+      };
     }
 
-    if (maxX === -1 || maxY === -1) return null;
+    function cropImageWithMargin(img, bounds, marginRatio = 0.12) {
+      const marginX = Math.round(bounds.width * marginRatio);
+      const marginY = Math.round(bounds.height * marginRatio);
 
-    return {
-      x: minX,
-      y: minY,
-      width: maxX - minX + 1,
-      height: maxY - minY + 1
-    };
-  }
+      const sx = Math.max(0, bounds.x - marginX);
+      const sy = Math.max(0, bounds.y - marginY);
+      const ex = Math.min(img.width, bounds.x + bounds.width + marginX);
+      const ey = Math.min(img.height, bounds.y + bounds.height + marginY);
 
-  function cropImageWithMargin(img, bounds, marginRatio = 0.15) {
-    const marginX = Math.round(bounds.width * marginRatio);
-    const marginY = Math.round(bounds.height * marginRatio);
+      const sw = ex - sx;
+      const sh = ey - sy;
 
-    const sx = Math.max(0, bounds.x - marginX);
-    const sy = Math.max(0, bounds.y - marginY);
-    const ex = Math.min(img.width, bounds.x + bounds.width + marginX);
-    const ey = Math.min(img.height, bounds.y + bounds.height + marginY);
+      const c = document.createElement("canvas");
+      c.width = sw;
+      c.height = sh;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
 
-    const sw = ex - sx;
-    const sh = ey - sy;
+      return c;
+    }
 
-    const c = document.createElement("canvas");
-    c.width = sw;
-    c.height = sh;
-    const cctx = c.getContext("2d");
-    cctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    function trimTransparentCanvas(sourceCanvasOrImage, alphaThreshold = 8) {
+      const c = document.createElement("canvas");
+      c.width = sourceCanvasOrImage.width;
+      c.height = sourceCanvasOrImage.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(sourceCanvasOrImage, 0, 0);
 
-    return c;
-  }
+      const bounds = getAlphaBounds(c, alphaThreshold);
+      if (!bounds) return c;
 
-  function cleanTransparentEdges(img) {
-    const c = document.createElement("canvas");
-    c.width = img.width;
-    c.height = img.height;
-    const cctx = c.getContext("2d");
-    cctx.drawImage(img, 0, 0);
+      const trimmed = document.createElement("canvas");
+      trimmed.width = bounds.width;
+      trimmed.height = bounds.height;
+      const tctx = trimmed.getContext("2d");
+      tctx.drawImage(c, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, bounds.width, bounds.height);
+      return trimmed;
+    }
 
-    const imageData = cctx.getImageData(0, 0, c.width, c.height);
-    const data = imageData.data;
-    const width = c.width;
-    const height = c.height;
+    function cleanTransparentEdges(img, aggressive = false) {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, 0, 0);
 
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const i = (y * width + x) * 4;
-        const a = data[i + 3];
+      const imageData = cctx.getImageData(0, 0, c.width, c.height);
+      const data = imageData.data;
+      const width = c.width;
+      const height = c.height;
 
-        if (a < 18) {
-          data[i + 3] = 0;
-        } else if (a < 60) {
-          data[i + 3] = Math.round(a * 0.7);
+      const lowCut = aggressive ? 30 : 18;
+      const midCut = aggressive ? 85 : 60;
+      const midFactor = aggressive ? 0.55 : 0.7;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const a = data[i + 3];
+
+          if (a < lowCut) {
+            data[i + 3] = 0;
+          } else if (a < midCut) {
+            data[i + 3] = Math.round(a * midFactor);
+          }
         }
       }
+
+      cctx.putImageData(imageData, 0, 0);
+
+      const softened = document.createElement("canvas");
+      softened.width = c.width;
+      softened.height = c.height;
+      const sctx = softened.getContext("2d");
+      sctx.filter = aggressive ? "blur(0.6px)" : "blur(0.8px)";
+      sctx.drawImage(c, 0, 0);
+
+      return trimTransparentCanvas(softened, aggressive ? 12 : 8);
     }
 
-    cctx.putImageData(imageData, 0, 0);
+    function previewOriginal(img) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#07101f";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const softened = document.createElement("canvas");
-    softened.width = c.width;
-    softened.height = c.height;
-    const sctx = softened.getContext("2d");
-    sctx.filter = "blur(0.8px)";
-    sctx.drawImage(c, 0, 0);
+      const ratio = Math.min(CANVAS_SIZE / img.width, CANVAS_SIZE / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      const x = (CANVAS_SIZE - w) / 2;
+      const y = (CANVAS_SIZE - h) / 2;
 
-    return softened;
-  }
+      ctx.drawImage(img, x, y, w, h);
+    }
 
-  function previewOriginal(img) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0b1220";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    function previewIntermediate(img, label) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#07101f";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const ratio = Math.min(CANVAS_SIZE / img.width, CANVAS_SIZE / img.height);
-    const w = img.width * ratio;
-    const h = img.height * ratio;
-    const x = (CANVAS_SIZE - w) / 2;
-    const y = (CANVAS_SIZE - h) / 2;
+      const ratio = Math.min((CANVAS_SIZE * 0.82) / img.width, (CANVAS_SIZE * 0.82) / img.height);
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      const x = (CANVAS_SIZE - w) / 2;
+      const y = (CANVAS_SIZE - h) / 2;
 
-    ctx.drawImage(img, x, y, w, h);
-  }
+      ctx.drawImage(img, x, y, w, h);
 
-  function previewIntermediate(img, label = "A remover fundo...") {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#0b1220";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(0, CANVAS_SIZE - 82, CANVAS_SIZE, 82);
 
-    const ratio = Math.min((CANVAS_SIZE * 0.8) / img.width, (CANVAS_SIZE * 0.8) / img.height);
-    const w = img.width * ratio;
-    const h = img.height * ratio;
-    const x = (CANVAS_SIZE - w) / 2;
-    const y = (CANVAS_SIZE - h) / 2;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 28px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(label, CANVAS_SIZE / 2, CANVAS_SIZE - 30);
+    }
 
-    ctx.drawImage(img, x, y, w, h);
+    function drawShadowCentered(img, x, y, width, height) {
+      const shadowCanvas = document.createElement("canvas");
+      shadowCanvas.width = width;
+      shadowCanvas.height = height;
+      const sctx = shadowCanvas.getContext("2d");
 
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fillRect(0, CANVAS_SIZE - 80, CANVAS_SIZE, 80);
+      sctx.drawImage(img, 0, 0, width, height);
+      sctx.globalCompositeOperation = "source-in";
+      sctx.fillStyle = "rgba(0,0,0,0.24)";
+      sctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 28px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(label, CANVAS_SIZE / 2, CANVAS_SIZE - 30);
-  }
+      ctx.save();
+      ctx.filter = "blur(12px)";
+      ctx.drawImage(shadowCanvas, x + 12, y + 16, width, height);
+      ctx.restore();
+    }
 
-  function drawShadowCentered(img, x, y, width, height) {
-    const shadowCanvas = document.createElement("canvas");
-    shadowCanvas.width = width;
-    shadowCanvas.height = height;
-    const sctx = shadowCanvas.getContext("2d");
+    function drawComposed(backgroundImg, subjectImg) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(backgroundImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
-    sctx.drawImage(img, 0, 0, width, height);
-    sctx.globalCompositeOperation = "source-in";
-    sctx.fillStyle = "rgba(0,0,0,0.28)";
-    sctx.fillRect(0, 0, width, height);
+      const scaleFactor = parseFloat(scaleSlider.value);
+      const safeArea = BASE_SAFE_AREA * scaleFactor;
 
-    ctx.save();
-    ctx.filter = "blur(14px)";
-    ctx.drawImage(shadowCanvas, x + 16, y + 20, width, height);
-    ctx.restore();
-  }
+      const ratio = Math.min(
+        safeArea / subjectImg.width,
+        safeArea / subjectImg.height
+      );
 
-  function drawComposed(backgroundImg, subjectImg) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(backgroundImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      const drawWidth = Math.round(subjectImg.width * ratio);
+      const drawHeight = Math.round(subjectImg.height * ratio);
 
-    const scaleFactor = parseFloat(scaleSlider.value);
+      const x = Math.round((CANVAS_SIZE - drawWidth) / 2);
+      const y = Math.round((CANVAS_SIZE - drawHeight) / 2);
 
-    const ratio = Math.min(
-      (SAFE_AREA * scaleFactor) / subjectImg.width,
-      (SAFE_AREA * scaleFactor) / subjectImg.height
-    );
+      drawShadowCentered(subjectImg, x, y, drawWidth, drawHeight);
+      ctx.drawImage(subjectImg, x, y, drawWidth, drawHeight);
+    }
 
-    const drawWidth = Math.round(subjectImg.width * ratio);
-    const drawHeight = Math.round(subjectImg.height * ratio);
-
-    const x = Math.round((CANVAS_SIZE - drawWidth) / 2);
-    const y = Math.round((CANVAS_SIZE - drawHeight) / 2);
-
-    drawShadowCentered(subjectImg, x, y, drawWidth, drawHeight);
-    ctx.drawImage(subjectImg, x, y, drawWidth, drawHeight);
-  }
-
-  async function updateDownloadBlob() {
-    lastFinalBlob = await canvasToBlob(canvas);
-    downloadBtn.classList.remove("hidden");
-  }
-
-  async function saveImageMobileFriendly() {
-    if (!lastFinalBlob) {
+    async function updateDownloadBlob() {
       lastFinalBlob = await canvasToBlob(canvas);
+      downloadBtn.classList.remove("hidden");
     }
 
-    const file = new File([lastFinalBlob], "produto-editado.png", { type: "image/png" });
-
-    // melhor caso para mobile
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: "Imagem editada",
-          text: "Guardar imagem"
-        });
-        return;
-      } catch (e) {
-        // se o utilizador cancelar, não fazer nada
-        return;
-      }
-    }
-
-    // fallback: abrir imagem numa nova aba
-    const url = URL.createObjectURL(lastFinalBlob);
-    window.open(url, "_blank");
-
-    // fallback extra: tenta download normal em desktop/android
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "produto-editado.png";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-
-  async function processImage() {
-    try {
-      const file = imageInput.files[0];
-      if (!file) {
-        alert("Escolhe uma imagem primeiro.");
-        return;
+    async function saveImageMobileFriendly() {
+      if (!lastFinalBlob) {
+        lastFinalBlob = await canvasToBlob(canvas);
       }
 
-      processBtn.disabled = true;
-      downloadBtn.classList.add("hidden");
-      lastBackgroundImg = null;
-      lastSubjectImg = null;
-      lastFinalBlob = null;
+      const file = new File([lastFinalBlob], "produto-editado.png", { type: "image/png" });
 
-      setStatus("A carregar fundo...");
-      const backgroundImg = await loadImageFromUrl(backgroundSelect.value);
-
-      setStatus("A preparar imagem...");
-      const originalImg = await loadImageFromFile(file);
-      previewOriginal(originalImg);
-      await sleep(350);
-
-      const preCanvas = imageToCanvas(originalImg, detailMode.checked ? 1800 : PREPROCESS_MAX);
-
-      setStatus("Primeiro recorte...");
-      const firstPass = await runSegmentation(preCanvas);
-      previewIntermediate(firstPass, "Primeiro recorte");
-      await sleep(350);
-
-      const bounds = getAlphaBounds(firstPass, 20);
-
-      let secondInput;
-      if (bounds) {
-        secondInput = cropImageWithMargin(
-          preCanvas,
-          bounds,
-          detailMode.checked ? 0.08 : 0.18
-        );
-      } else {
-        secondInput = preCanvas;
-      }
-
-      setStatus("Segundo recorte para melhorar detalhes...");
-      const secondPass = await runSegmentation(secondInput);
-      previewIntermediate(secondPass, "A melhorar detalhes");
-      await sleep(350);
-
-      let finalSubject = secondPass;
-
-      // terceira passagem opcional em modo detalhe
-      if (detailMode.checked) {
-        const secondBounds = getAlphaBounds(secondPass, 18);
-        if (secondBounds) {
-          setStatus("Refinamento extra...");
-          const thirdInput = cropImageWithMargin(secondInput, secondBounds, 0.05);
-          const thirdPass = await runSegmentation(thirdInput);
-          previewIntermediate(thirdPass, "Refinamento final");
-          await sleep(300);
-          finalSubject = thirdPass;
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            files: [file],
+            title: "Imagem editada"
+          });
+          return;
+        } catch (e) {
+          return;
         }
       }
 
-      setStatus("A limpar bordas...");
-      const cleaned = cleanTransparentEdges(finalSubject);
+      const url = URL.createObjectURL(lastFinalBlob);
+      window.open(url, "_blank");
 
-      setStatus("A compor imagem final...");
-      drawComposed(backgroundImg, cleaned);
-
-      lastBackgroundImg = backgroundImg;
-      lastSubjectImg = cleaned;
-
-      await updateDownloadBlob();
-      setStatus("Imagem pronta.");
-    } catch (error) {
-      console.error("ERRO COMPLETO:", error);
-      setStatus("");
-      alert("Erro ao processar no browser. Tenta outra imagem ou recarrega a página.");
-    } finally {
-      processBtn.disabled = false;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "produto-editado.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     }
-  }
 
-  processBtn.addEventListener("click", processImage);
-  downloadBtn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    await saveImageMobileFriendly();
-  });
-</script>
+    async function processImage() {
+      try {
+        const file = imageInput.files[0];
+        if (!file) {
+          alert("Escolhe uma imagem primeiro.");
+          return;
+        }
+
+        processBtn.disabled = true;
+        downloadBtn.classList.add("hidden");
+        lastBackgroundImg = null;
+        lastSubjectImg = null;
+        lastFinalBlob = null;
+
+        const aggressive = detailMode.checked;
+
+        setStatus("A carregar fundo...");
+        const backgroundImg = await loadImageFromUrl(backgroundSelect.value);
+
+        setStatus("A preparar imagem...");
+        const originalImg = await loadImageFromFile(file);
+        previewOriginal(originalImg);
+        await sleep(250);
+
+        const preCanvas = imageToCanvas(originalImg, aggressive ? 2200 : 1600);
+
+        setStatus("Primeiro recorte...");
+        const firstPass = await runSegmentation(preCanvas);
+        previewIntermediate(firstPass, "Primeiro recorte");
+        await sleep(250);
+
+        const firstBounds = getAlphaBounds(firstPass, aggressive ? 12 : 20);
+
+        let workCanvas = firstBounds
+          ? cropImageWithMargin(preCanvas, firstBounds, aggressive ? 0.04 : 0.14)
+          : preCanvas;
+
+        setStatus("Segundo recorte...");
+        const secondPass = await runSegmentation(workCanvas);
+        previewIntermediate(secondPass, "A melhorar detalhes");
+        await sleep(250);
+
+        let finalSubject = secondPass;
+
+        if (aggressive) {
+          const secondBounds = getAlphaBounds(secondPass, 10);
+          if (secondBounds) {
+            const tighterCanvas = cropImageWithMargin(workCanvas, secondBounds, 0.02);
+            setStatus("Refinamento extra...");
+            const thirdPass = await runSegmentation(tighterCanvas);
+            previewIntermediate(thirdPass, "Refinamento final");
+            await sleep(220);
+            finalSubject = thirdPass;
+          }
+        }
+
+        setStatus("A limpar bordas...");
+        const cleaned = cleanTransparentEdges(finalSubject, aggressive);
+
+        setStatus("A compor imagem final...");
+        drawComposed(backgroundImg, cleaned);
+
+        lastBackgroundImg = backgroundImg;
+        lastSubjectImg = cleaned;
+
+        await updateDownloadBlob();
+        setStatus("Imagem pronta.");
+      } catch (error) {
+        console.error("ERRO COMPLETO:", error);
+        setStatus("");
+        alert("Erro ao processar no browser. Tenta outra imagem ou recarrega a página.");
+      } finally {
+        processBtn.disabled = false;
+      }
+    }
+
+    processBtn.addEventListener("click", processImage);
+    downloadBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      await saveImageMobileFriendly();
+    });
+  </script>
 </body>
 </html>
