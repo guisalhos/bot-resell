@@ -346,7 +346,6 @@
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
               <button class="photo-button" id="editEraseBtn" type="button" style="flex:1;">Apagar</button>
               <button class="photo-button secondary-button" id="editRestoreBtn" type="button" style="flex:1;">Recuperar</button>
-              <button class="photo-button secondary-button" id="editZoomBtn" type="button" style="flex:1;">Zoom</button>
               <button class="photo-button secondary-button" id="closeEditorBtn" type="button" style="flex:1;">Fechar editor</button>
             </div>
 
@@ -394,7 +393,6 @@
     const editorPanel = document.getElementById("editorPanel");
     const editEraseBtn = document.getElementById("editEraseBtn");
     const editRestoreBtn = document.getElementById("editRestoreBtn");
-    const editZoomBtn = document.getElementById("editZoomBtn");
     const closeEditorBtn = document.getElementById("closeEditorBtn");
     const brushSizeSlider = document.getElementById("brushSizeSlider");
     const brushSizeValue = document.getElementById("brushSizeValue");
@@ -421,11 +419,6 @@
         return;
       }
 
-      if (editorMode === "zoom") {
-        canvas.style.cursor = "zoom-in";
-        return;
-      }
-
       if (editorMode === "erase") {
         canvas.style.cursor = `
           url("data:image/svg+xml;utf8,
@@ -448,6 +441,15 @@
       }
     }
 
+    function resetEditorZoom() {
+      editorZoom = 1;
+      editorZoomSlider.value = "1";
+      editorZoomValue.textContent = "100%";
+      canvasStage.style.transform = "scale(1)";
+      canvasWrap.scrollLeft = 0;
+      canvasWrap.scrollTop = 0;
+    }
+
     scaleSlider.addEventListener("input", async () => {
       scaleValue.textContent = Math.round(parseFloat(scaleSlider.value) * 100) + "%";
       if (lastBackgroundImg && lastSubjectCanvas) {
@@ -462,13 +464,14 @@
     });
 
     editorZoomSlider.addEventListener("input", () => {
+      if (editorPanel.classList.contains("hidden")) {
+        editorZoomSlider.value = "1";
+        return;
+      }
+
       editorZoom = parseFloat(editorZoomSlider.value);
       editorZoomValue.textContent = Math.round(editorZoom * 100) + "%";
       canvasStage.style.transform = `scale(${editorZoom})`;
-      canvasStage.style.width = `${CANVAS_SIZE}px`;
-      canvasStage.style.height = `${CANVAS_SIZE}px`;
-      canvasWrap.scrollLeft = 0;
-      canvasWrap.scrollTop = 0;
     });
 
     editEraseBtn.addEventListener("click", () => {
@@ -476,23 +479,20 @@
       updateCursor();
     });
 
-    editRestoreBtn.addEventListener("click", () => {
+    editRestoreBtn.addEventListener("click", async () => {
       editorMode = "restore";
-      updateCursor();
-    });
-
-    editZoomBtn.addEventListener("click", () => {
-      editorMode = "zoom";
       updateCursor();
     });
 
     openEditorBtn.addEventListener("click", () => {
       editorPanel.classList.remove("hidden");
+      resetEditorZoom();
       updateCursor();
     });
 
     closeEditorBtn.addEventListener("click", async () => {
       editorPanel.classList.add("hidden");
+      resetEditorZoom();
       updateCursor();
       if (lastBackgroundImg && lastSubjectCanvas) {
         drawComposed(lastBackgroundImg, lastSubjectCanvas);
@@ -845,6 +845,7 @@
 
       const scaleFactor = parseFloat(scaleSlider.value);
       const safeArea = BASE_SAFE_AREA * scaleFactor;
+
       const ratio = Math.min(
         safeArea / lastSubjectCanvas.width,
         safeArea / lastSubjectCanvas.height
@@ -858,7 +859,12 @@
       const localX = (pointerX - drawX) / ratio;
       const localY = (pointerY - drawY) / ratio;
 
-      if (localX < 0 || localY < 0 || localX > lastSubjectCanvas.width || localY > lastSubjectCanvas.height) {
+      if (
+        localX < 0 ||
+        localY < 0 ||
+        localX > lastSubjectCanvas.width ||
+        localY > lastSubjectCanvas.height
+      ) {
         return;
       }
 
@@ -895,13 +901,6 @@
 
     function startEdit(e) {
       if (editorPanel.classList.contains("hidden")) return;
-
-      if (editorMode === "zoom") {
-        canvasWrap.scrollLeft += 120;
-        canvasWrap.scrollTop += 120;
-        return;
-      }
-
       isDrawing = true;
       const pos = getCanvasPointerPosition(e);
       applyBrushToSubject(pos.x, pos.y);
@@ -937,6 +936,8 @@
         lastSubjectCanvas = null;
         originalSubjectCanvas = null;
         lastFinalBlob = null;
+        resetEditorZoom();
+        updateCursor();
 
         const aggressive = detailMode.checked;
 
@@ -989,8 +990,6 @@
         lastBackgroundImg = backgroundImg;
         lastSubjectCanvas = cleaned;
         originalSubjectCanvas = cloneCanvas(cleaned);
-
-        canvasStage.style.transform = `scale(${editorZoom})`;
 
         await updateDownloadBlob();
         openEditorBtn.classList.remove("hidden");
