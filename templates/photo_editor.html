@@ -64,7 +64,6 @@
       text-align: center;
     }
 
-    .photo-preview-box img,
     .photo-preview-box canvas {
       max-width: 100%;
       border-radius: 12px;
@@ -90,6 +89,24 @@
       text-decoration: none;
       border-radius: 12px;
       font-weight: 600;
+      text-align: center;
+    }
+
+    .range-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .range-label {
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    .range-value {
+      color: #9ca3af;
+      font-size: 13px;
     }
 
     @media (max-width: 900px) {
@@ -126,6 +143,12 @@
             <option value="/static/backgrounds/industrial_3.png">Fundo industrial 3</option>
           </select>
 
+          <div class="range-group">
+            <label class="range-label" for="scaleSlider">Tamanho da peça</label>
+            <input type="range" id="scaleSlider" min="0.75" max="1.35" step="0.01" value="1.00" />
+            <div class="range-value" id="scaleValue">100%</div>
+          </div>
+
           <button id="processBtn">Gerar imagem</button>
 
           <div class="status-text" id="statusText"></div>
@@ -152,11 +175,25 @@
     const downloadBtn = document.getElementById("downloadBtn");
     const canvas = document.getElementById("resultCanvas");
     const ctx = canvas.getContext("2d");
+    const scaleSlider = document.getElementById("scaleSlider");
+    const scaleValue = document.getElementById("scaleValue");
 
     const CANVAS_SIZE = 1200;
-    const SAFE_AREA = 920;
+    const SAFE_AREA = 900;
+    const PREPROCESS_MAX = 1600;
 
     let remover = null;
+    let lastBackgroundImg = null;
+    let lastSubjectImg = null;
+
+    scaleSlider.addEventListener("input", () => {
+      const pct = Math.round(parseFloat(scaleSlider.value) * 100);
+      scaleValue.textContent = pct + "%";
+      if (lastBackgroundImg && lastSubjectImg) {
+        drawComposed(lastBackgroundImg, lastSubjectImg);
+        updateDownload();
+      }
+    });
 
     function setStatus(text) {
       statusText.textContent = text;
@@ -198,27 +235,139 @@
       });
     }
 
+    function canvasToBlob(canvasEl) {
+      return new Promise((resolve) => {
+        canvasEl.toBlob((blob) => resolve(blob), "image/png");
+      });
+    }
+
+    function imageToCanvas(img, maxSize = PREPROCESS_MAX) {
+      const c = document.createElement("canvas");
+      const cctx = c.getContext("2d");
+
+      let w = img.width;
+      let h = img.height;
+
+      const ratio = Math.min(maxSize / w, maxSize / h, 1);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+
+      c.width = w;
+      c.height = h;
+      cctx.drawImage(img, 0, 0, w, h);
+      return c;
+    }
+
     async function getRemover() {
       if (!remover) {
-        setStatus("A carregar modelo de remoção de fundo...");
-        remover = await pipeline(
-          "background-removal",
-          "Xenova/modnet",
-          { device: "webgpu" }
-        ).catch(async () => {
-          return await pipeline(
-            "background-removal",
-            "Xenova/modnet"
-          );
-        });
+        setStatus("A carregar modelo...");
+        remover = await pipeline("background-removal", "Xenova/modnet");
       }
       return remover;
     }
 
-    function drawCheckerboard() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    async function runSegmentation(input) {
+      const segmenter = await getRemover();
+      const output = await segmenter(input);
+      const blob = Array.isArray(output) ? await output[0].toBlob() : await output.toBlob();
+      return await blobToImage(blob);
+    }
+
+    function getAlphaBounds(img, alphaThreshold = 20) {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, 0, 0);
+
+      const { data, width, height } = cctx.getImageData(0, 0, c.width, c.height);
+
+      let minX = width;
+      let minY = height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const alpha = data[i + 3];
+          if (alpha > alphaThreshold) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      if (maxX === -1 || maxY === -1) {
+        return null;
+      }
+
+      return {
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1
+      };
+    }
+
+    function cropImageWithMargin(img, bounds, marginRatio = 0.15) {
+      const marginX = Math.round(bounds.width * marginRatio);
+      const marginY = Math.round(bounds.height * marginRatio);
+
+      const sx = Math.max(0, bounds.x - marginX);
+      const sy = Math.max(0, bounds.y - marginY);
+      const ex = Math.min(img.width, bounds.x + bounds.width + marginX);
+      const ey = Math.min(img.height, bounds.y + bounds.height + marginY);
+
+      const sw = ex - sx;
+      const sh = ey - sy;
+
+      const c = document.createElement("canvas");
+      c.width = sw;
+      c.height = sh;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+      return c;
+    }
+
+    function cleanTransparentEdges(img) {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(img, 0, 0);
+
+      const imageData = cctx.getImageData(0, 0, c.width, c.height);
+      const data = imageData.data;
+      const width = c.width;
+      const height = c.height;
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const i = (y * width + x) * 4;
+          const a = data[i + 3];
+
+          if (a < 18) {
+            data[i + 3] = 0;
+          } else if (a < 60) {
+            data[i + 3] = Math.round(a * 0.7);
+          }
+        }
+      }
+
+      cctx.putImageData(imageData, 0, 0);
+
+      const softened = document.createElement("canvas");
+      softened.width = c.width;
+      softened.height = c.height;
+      const sctx = softened.getContext("2d");
+      sctx.filter = "blur(0.8px)";
+      sctx.drawImage(c, 0, 0);
+
+      return softened;
     }
 
     function drawShadowCentered(img, x, y, width, height) {
@@ -229,23 +378,24 @@
 
       sctx.drawImage(img, 0, 0, width, height);
       sctx.globalCompositeOperation = "source-in";
-      sctx.fillStyle = "rgba(0,0,0,0.32)";
+      sctx.fillStyle = "rgba(0,0,0,0.28)";
       sctx.fillRect(0, 0, width, height);
 
       ctx.save();
-      ctx.filter = "blur(16px)";
-      ctx.drawImage(shadowCanvas, x + 18, y + 22, width, height);
+      ctx.filter = "blur(14px)";
+      ctx.drawImage(shadowCanvas, x + 16, y + 20, width, height);
       ctx.restore();
     }
 
     function drawComposed(backgroundImg, subjectImg) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       ctx.drawImage(backgroundImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
 
+      const scaleFactor = parseFloat(scaleSlider.value);
+
       const ratio = Math.min(
-        SAFE_AREA / subjectImg.width,
-        SAFE_AREA / subjectImg.height
+        (SAFE_AREA * scaleFactor) / subjectImg.width,
+        (SAFE_AREA * scaleFactor) / subjectImg.height
       );
 
       const drawWidth = Math.round(subjectImg.width * ratio);
@@ -258,6 +408,12 @@
       ctx.drawImage(subjectImg, x, y, drawWidth, drawHeight);
     }
 
+    function updateDownload() {
+      const finalUrl = canvas.toDataURL("image/png");
+      downloadBtn.href = finalUrl;
+      downloadBtn.classList.remove("hidden");
+    }
+
     async function processImage() {
       try {
         const file = imageInput.files[0];
@@ -268,34 +424,46 @@
 
         processBtn.disabled = true;
         downloadBtn.classList.add("hidden");
-        setStatus("A preparar imagem...");
+        lastBackgroundImg = null;
+        lastSubjectImg = null;
 
+        setStatus("A carregar fundo...");
         const backgroundImg = await loadImageFromUrl(backgroundSelect.value);
+
+        setStatus("A preparar imagem...");
         const originalImg = await loadImageFromFile(file);
+        const preCanvas = imageToCanvas(originalImg, PREPROCESS_MAX);
 
-        drawCheckerboard();
-        ctx.drawImage(originalImg, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        setStatus("Primeiro recorte...");
+        const firstPass = await runSegmentation(preCanvas);
 
-        const segmenter = await getRemover();
+        const bounds = getAlphaBounds(firstPass, 20);
 
-        setStatus("A remover fundo no teu dispositivo...");
-        const output = await segmenter(file);
+        let secondInput;
+        if (bounds) {
+          secondInput = cropImageWithMargin(preCanvas, bounds, 0.18);
+        } else {
+          secondInput = preCanvas;
+        }
 
-        const blob = await output[0].toBlob();
-        const transparentSubject = await blobToImage(blob);
+        setStatus("Segundo recorte para melhorar detalhes...");
+        const secondPass = await runSegmentation(secondInput);
+
+        setStatus("A limpar bordas...");
+        const cleaned = cleanTransparentEdges(secondPass);
 
         setStatus("A compor imagem final...");
-        drawComposed(backgroundImg, transparentSubject);
+        drawComposed(backgroundImg, cleaned);
 
-        const finalUrl = canvas.toDataURL("image/png");
-        downloadBtn.href = finalUrl;
-        downloadBtn.classList.remove("hidden");
+        lastBackgroundImg = backgroundImg;
+        lastSubjectImg = cleaned;
 
+        updateDownload();
         setStatus("Imagem pronta.");
       } catch (error) {
-        console.error(error);
+        console.error("ERRO COMPLETO:", error);
         setStatus("");
-        alert("Erro ao processar a imagem no browser. Experimenta uma imagem mais pequena ou outro dispositivo.");
+        alert("Erro ao processar no browser. Tenta outra imagem ou recarrega a página.");
       } finally {
         processBtn.disabled = false;
       }
