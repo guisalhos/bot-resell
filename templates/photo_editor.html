@@ -203,22 +203,30 @@
       aspect-ratio: 1 / 1;
       background: #050b16;
       border-radius: 16px;
-      overflow: auto;
       border: 1px solid #18263d;
-      display: block;
       position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-wrap.editor-active {
+      overflow: auto;
     }
 
     .canvas-stage {
-      width: 1200px;
-      height: 1200px;
+      width: 100%;
+      height: 100%;
       transform-origin: top left;
       position: relative;
     }
 
-    .canvas-stage canvas {
+    .canvas-wrap.editor-active .canvas-stage {
       width: 1200px;
       height: 1200px;
+    }
+
+    .canvas-stage canvas {
+      width: 100%;
+      height: 100%;
       display: block;
     }
 
@@ -450,6 +458,14 @@
       canvasWrap.scrollTop = 0;
     }
 
+    function setEditorActive(active) {
+      if (active) {
+        canvasWrap.classList.add("editor-active");
+      } else {
+        canvasWrap.classList.remove("editor-active");
+      }
+    }
+
     scaleSlider.addEventListener("input", async () => {
       scaleValue.textContent = Math.round(parseFloat(scaleSlider.value) * 100) + "%";
       if (lastBackgroundImg && lastSubjectCanvas) {
@@ -479,19 +495,21 @@
       updateCursor();
     });
 
-    editRestoreBtn.addEventListener("click", async () => {
+    editRestoreBtn.addEventListener("click", () => {
       editorMode = "restore";
       updateCursor();
     });
 
     openEditorBtn.addEventListener("click", () => {
       editorPanel.classList.remove("hidden");
+      setEditorActive(true);
       resetEditorZoom();
       updateCursor();
     });
 
     closeEditorBtn.addEventListener("click", async () => {
       editorPanel.classList.add("hidden");
+      setEditorActive(false);
       resetEditorZoom();
       updateCursor();
       if (lastBackgroundImg && lastSubjectCanvas) {
@@ -878,10 +896,11 @@
         sctx.fill();
       } else if (editorMode === "restore") {
         const tempMask = document.createElement("canvas");
-        tempMask.width = lastSubjectCanvas.width;
-        tempMask.height = lastSubjectCanvas.height;
+        tempMask.width = originalSubjectCanvas.width;
+        tempMask.height = originalSubjectCanvas.height;
         const mctx = tempMask.getContext("2d");
 
+        mctx.clearRect(0, 0, tempMask.width, tempMask.height);
         mctx.beginPath();
         mctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
         mctx.closePath();
@@ -932,6 +951,7 @@
         downloadBtn.classList.add("hidden");
         openEditorBtn.classList.add("hidden");
         editorPanel.classList.add("hidden");
+        setEditorActive(false);
         lastBackgroundImg = null;
         lastSubjectCanvas = null;
         originalSubjectCanvas = null;
