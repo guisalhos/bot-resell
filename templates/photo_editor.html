@@ -444,6 +444,10 @@
 
     let dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
 
+    function isMobile() {
+      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    }
+
     function setActiveModeButton() {
       [editEraseBtn, editRestoreBtn, editMoveBtn].forEach(btn => btn.classList.remove("active"));
       if (editorMode === "erase") editEraseBtn.classList.add("active");
@@ -831,48 +835,66 @@
     }
 
     async function saveImage() {
-      const dataUrl = canvas.toDataURL("image/png");
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/png");
+      });
+
+      if (!blob) {
+        alert("Não foi possível gerar a imagem.");
+        return;
+      }
 
       if (isMobile()) {
         try {
-          const newTab = window.open("", "_blank");
-          if (newTab) {
-            newTab.document.write(`
-              <html>
-                <head>
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Guardar imagem</title>
-                  <style>
-                    body { margin:0; background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-                    p { padding:14px; margin:0; font-size:14px; }
-                    img { max-width:100%; height:auto; display:block; margin:0 auto; }
-                  </style>
-                </head>
-                <body>
-                  <p>Abre a imagem e mantém o dedo premido para a guardar.</p>
-                  <img src="${dataUrl}" alt="Imagem editada">
-                </body>
-              </html>
-            `);
-            newTab.document.close();
+          const file = new File([blob], "produto-editado.png", { type: "image/png" });
+
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: "Imagem editada"
+            });
             return;
           }
         } catch (e) {}
 
-        window.location.href = dataUrl;
+        const mobileUrl = URL.createObjectURL(blob);
+        const newTab = window.open("", "_blank");
+
+        if (newTab) {
+          newTab.document.write(`
+            <html>
+              <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Guardar imagem</title>
+                <style>
+                  body { margin:0; background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
+                  p { padding:14px; margin:0; font-size:14px; }
+                  img { max-width:100%; height:auto; display:block; margin:0 auto; }
+                </style>
+              </head>
+              <body>
+                <p>Abre a imagem e mantém o dedo premido para a guardar.</p>
+                <img src="${mobileUrl}" alt="Imagem editada">
+              </body>
+            </html>
+          `);
+          newTab.document.close();
+          return;
+        }
+
+        window.location.href = mobileUrl;
         return;
       }
 
-      try {
-        const link = document.createElement("a");
-        link.href = dataUrl;
-        link.download = "produto-editado.png";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      } catch (e) {
-        window.open(dataUrl, "_blank");
-      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "produto-editado.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     }
 
     function getCanvasPointerPosition(e) {
