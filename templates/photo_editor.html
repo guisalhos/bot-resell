@@ -206,10 +206,13 @@
       border: 1px solid #18263d;
       position: relative;
       overflow: hidden;
+      touch-action: auto;
     }
 
     .canvas-wrap.editor-active {
       overflow: auto;
+      touch-action: pan-x pan-y;
+      -webkit-overflow-scrolling: touch;
     }
 
     .canvas-stage {
@@ -418,7 +421,6 @@
 
     let editorMode = "erase";
     let isDrawing = false;
-    let editorZoom = 1;
     let brushSize = 30;
 
     function updateCursor() {
@@ -450,7 +452,6 @@
     }
 
     function resetEditorZoom() {
-      editorZoom = 1;
       editorZoomSlider.value = "1";
       editorZoomValue.textContent = "100%";
       canvasStage.style.transform = "scale(1)";
@@ -464,62 +465,6 @@
       } else {
         canvasWrap.classList.remove("editor-active");
       }
-    }
-
-    scaleSlider.addEventListener("input", async () => {
-      scaleValue.textContent = Math.round(parseFloat(scaleSlider.value) * 100) + "%";
-      if (lastBackgroundImg && lastSubjectCanvas) {
-        drawComposed(lastBackgroundImg, lastSubjectCanvas);
-        await updateDownloadBlob();
-      }
-    });
-
-    brushSizeSlider.addEventListener("input", () => {
-      brushSize = parseInt(brushSizeSlider.value, 10);
-      brushSizeValue.textContent = brushSize;
-    });
-
-    editorZoomSlider.addEventListener("input", () => {
-      if (editorPanel.classList.contains("hidden")) {
-        editorZoomSlider.value = "1";
-        return;
-      }
-
-      editorZoom = parseFloat(editorZoomSlider.value);
-      editorZoomValue.textContent = Math.round(editorZoom * 100) + "%";
-      canvasStage.style.transform = `scale(${editorZoom})`;
-    });
-
-    editEraseBtn.addEventListener("click", () => {
-      editorMode = "erase";
-      updateCursor();
-    });
-
-    editRestoreBtn.addEventListener("click", () => {
-      editorMode = "restore";
-      updateCursor();
-    });
-
-    openEditorBtn.addEventListener("click", () => {
-      editorPanel.classList.remove("hidden");
-      setEditorActive(true);
-      resetEditorZoom();
-      updateCursor();
-    });
-
-    closeEditorBtn.addEventListener("click", async () => {
-      editorPanel.classList.add("hidden");
-      setEditorActive(false);
-      resetEditorZoom();
-      updateCursor();
-      if (lastBackgroundImg && lastSubjectCanvas) {
-        drawComposed(lastBackgroundImg, lastSubjectCanvas);
-        await updateDownloadBlob();
-      }
-    });
-
-    function isMobile() {
-      return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     }
 
     function setStatus(text) {
@@ -895,23 +840,42 @@
         sctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
         sctx.fill();
       } else if (editorMode === "restore") {
-        const tempMask = document.createElement("canvas");
-        tempMask.width = originalSubjectCanvas.width;
-        tempMask.height = originalSubjectCanvas.height;
-        const mctx = tempMask.getContext("2d");
+        const radius = brushSize / ratio;
+        const diameter = Math.ceil(radius * 2);
 
-        mctx.clearRect(0, 0, tempMask.width, tempMask.height);
+        const sx = Math.max(0, Math.floor(localX - radius));
+        const sy = Math.max(0, Math.floor(localY - radius));
+        const sw = Math.min(originalSubjectCanvas.width - sx, diameter);
+        const sh = Math.min(originalSubjectCanvas.height - sy, diameter);
+
+        if (sw <= 0 || sh <= 0) {
+          sctx.restore();
+          return;
+        }
+
+        const patchCanvas = document.createElement("canvas");
+        patchCanvas.width = sw;
+        patchCanvas.height = sh;
+        const pctx = patchCanvas.getContext("2d");
+
+        pctx.drawImage(originalSubjectCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        const maskCanvas = document.createElement("canvas");
+        maskCanvas.width = sw;
+        maskCanvas.height = sh;
+        const mctx = maskCanvas.getContext("2d");
+
         mctx.beginPath();
-        mctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
+        mctx.arc(localX - sx, localY - sy, radius, 0, Math.PI * 2);
         mctx.closePath();
         mctx.fillStyle = "#ffffff";
         mctx.fill();
 
-        mctx.globalCompositeOperation = "source-in";
-        mctx.drawImage(originalSubjectCanvas, 0, 0);
+        pctx.globalCompositeOperation = "destination-in";
+        pctx.drawImage(maskCanvas, 0, 0);
 
         sctx.globalCompositeOperation = "source-over";
-        sctx.drawImage(tempMask, 0, 0);
+        sctx.drawImage(patchCanvas, sx, sy);
       }
 
       sctx.restore();
@@ -1022,6 +986,63 @@
         processBtn.disabled = false;
       }
     }
+
+    scaleSlider.addEventListener("input", async () => {
+      scaleValue.textContent = Math.round(parseFloat(scaleSlider.value) * 100) + "%";
+      if (lastBackgroundImg && lastSubjectCanvas) {
+        drawComposed(lastBackgroundImg, lastSubjectCanvas);
+        await updateDownloadBlob();
+      }
+    });
+
+    brushSizeSlider.addEventListener("input", () => {
+      brushSize = parseInt(brushSizeSlider.value, 10);
+      brushSizeValue.textContent = brushSize;
+    });
+
+    editorZoomSlider.addEventListener("input", () => {
+      if (editorPanel.classList.contains("hidden")) {
+        editorZoomSlider.value = "1";
+        return;
+      }
+
+      const zoom = parseFloat(editorZoomSlider.value);
+      editorZoomValue.textContent = Math.round(zoom * 100) + "%";
+      canvasStage.style.transform = `scale(${zoom})`;
+
+      if (zoom <= 1.001) {
+        canvasWrap.scrollLeft = 0;
+        canvasWrap.scrollTop = 0;
+      }
+    });
+
+    editEraseBtn.addEventListener("click", () => {
+      editorMode = "erase";
+      updateCursor();
+    });
+
+    editRestoreBtn.addEventListener("click", () => {
+      editorMode = "restore";
+      updateCursor();
+    });
+
+    openEditorBtn.addEventListener("click", () => {
+      editorPanel.classList.remove("hidden");
+      setEditorActive(true);
+      resetEditorZoom();
+      updateCursor();
+    });
+
+    closeEditorBtn.addEventListener("click", async () => {
+      editorPanel.classList.add("hidden");
+      setEditorActive(false);
+      resetEditorZoom();
+      updateCursor();
+      if (lastBackgroundImg && lastSubjectCanvas) {
+        drawComposed(lastBackgroundImg, lastSubjectCanvas);
+        await updateDownloadBlob();
+      }
+    });
 
     processBtn.addEventListener("click", processImage);
     downloadBtn.addEventListener("click", async (e) => {
