@@ -6,9 +6,7 @@
   <title>Editor de Fotos</title>
   <link rel="stylesheet" href="/static/style.css" />
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     .photo-editor-wrap {
       max-width: 1120px;
@@ -89,13 +87,8 @@
       transition: transform 0.12s ease, opacity 0.12s ease;
     }
 
-    .photo-button:hover {
-      opacity: 0.96;
-    }
-
-    .photo-button:active {
-      transform: scale(0.995);
-    }
+    .photo-button:hover { opacity: 0.96; }
+    .photo-button:active { transform: scale(0.995); }
 
     .secondary-button {
       background: #14532d;
@@ -129,9 +122,7 @@
       white-space: nowrap;
     }
 
-    .photo-range {
-      width: 100%;
-    }
+    .photo-range { width: 100%; }
 
     .checkbox-card {
       width: 100%;
@@ -213,6 +204,11 @@
       overflow: auto;
       touch-action: pan-x pan-y;
       -webkit-overflow-scrolling: touch;
+      cursor: grab;
+    }
+
+    .canvas-wrap.editor-active.zoomed.dragging {
+      cursor: grabbing;
     }
 
     .canvas-stage {
@@ -228,55 +224,27 @@
       display: block;
     }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     @media (max-width: 900px) {
-      .photo-title {
-        font-size: 32px;
-      }
-
-      .photo-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .photo-card {
-        padding: 14px;
-      }
-
-      .photo-preview-box {
-        order: 2;
-      }
-
-      .photo-controls {
-        order: 1;
-      }
+      .photo-title { font-size: 32px; }
+      .photo-grid { grid-template-columns: 1fr; }
+      .photo-card { padding: 14px; }
+      .photo-preview-box { order: 2; }
+      .photo-controls { order: 1; }
     }
 
     @media (max-width: 560px) {
-      .photo-editor-wrap {
-        padding: 12px;
-      }
-
-      .photo-title {
-        font-size: 26px;
-      }
-
+      .photo-editor-wrap { padding: 12px; }
+      .photo-title { font-size: 26px; }
       .photo-input,
       .photo-select,
       .photo-button {
         font-size: 16px;
         padding: 14px;
       }
-
-      .checkbox-row {
-        align-items: center;
-      }
-
-      .checkbox-subtitle {
-        font-size: 12px;
-      }
+      .checkbox-row { align-items: center; }
+      .checkbox-subtitle { font-size: 12px; }
     }
   </style>
 </head>
@@ -337,7 +305,7 @@
           <a id="downloadBtn" class="photo-button secondary-button hidden" href="#">Guardar imagem</a>
 
           <div class="tips-box">
-            Para melhores resultados, tira a foto com boa luz, a peça bem visível, sem objetos por perto e com o fundo o mais simples possível. Se a foto estiver mais próxima da peça ou se só for preciso limpar pequenas zonas do fundo, ativa o modo detalhe.
+            Para melhores resultados, tira a foto com boa luz, a peça bem visível, sem objetos por perto e com o fundo o mais simples possível. Se a foto estiver mais próxima da peça ou se só for preciso limpar pequenas zonas do fundo, ativa o modo detalhe. A experiência no computador é melhor.
           </div>
         </div>
 
@@ -352,6 +320,7 @@
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
               <button class="photo-button" id="editEraseBtn" type="button" style="flex:1;">Apagar</button>
               <button class="photo-button secondary-button" id="editRestoreBtn" type="button" style="flex:1;">Recuperar</button>
+              <button class="photo-button secondary-button" id="editMoveBtn" type="button" style="flex:1;">Mover</button>
               <button class="photo-button secondary-button" id="closeEditorBtn" type="button" style="flex:1;">Fechar editor</button>
             </div>
 
@@ -399,6 +368,7 @@
     const editorPanel = document.getElementById("editorPanel");
     const editEraseBtn = document.getElementById("editEraseBtn");
     const editRestoreBtn = document.getElementById("editRestoreBtn");
+    const editMoveBtn = document.getElementById("editMoveBtn");
     const closeEditorBtn = document.getElementById("closeEditorBtn");
     const brushSizeSlider = document.getElementById("brushSizeSlider");
     const brushSizeValue = document.getElementById("brushSizeValue");
@@ -411,7 +381,7 @@
     let remover = null;
     let lastBackgroundImg = null;
     let lastSubjectCanvas = null;
-    let originalSubjectCanvas = null;
+    let restoreSourceCanvas = null;
     let lastFinalBlob = null;
 
     let editorMode = "erase";
@@ -419,13 +389,16 @@
     let brushSize = 30;
 
     let touchPending = false;
-    let touchStartX = 0;
-    let touchStartY = 0;
     let drawStartTimer = null;
 
     function updateCursor() {
       if (editorPanel.classList.contains("hidden")) {
         canvas.style.cursor = "default";
+        return;
+      }
+
+      if (editorMode === "move") {
+        canvas.style.cursor = "grab";
         return;
       }
 
@@ -440,15 +413,13 @@
         return;
       }
 
-      if (editorMode === "restore") {
-        canvas.style.cursor = `
-          url("data:image/svg+xml;utf8,
-          <svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
-            <path d='M7 23 L12 10 L18 7 L25 14 L22 20 L9 25 Z' fill='%23f8fafc' stroke='%230f172a' stroke-width='2'/>
-            <path d='M16 8 L24 16' stroke='%230f172a' stroke-width='2'/>
-          </svg>") 4 24, auto
-        `;
-      }
+      canvas.style.cursor = `
+        url("data:image/svg+xml;utf8,
+        <svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'>
+          <path d='M7 23 L12 10 L18 7 L25 14 L22 20 L9 25 Z' fill='%23f8fafc' stroke='%230f172a' stroke-width='2'/>
+          <path d='M16 8 L24 16' stroke='%230f172a' stroke-width='2'/>
+        </svg>") 4 24, auto
+      `;
     }
 
     function setEditorActive(active) {
@@ -457,6 +428,7 @@
       } else {
         canvasWrap.classList.remove("editor-active");
         canvasWrap.classList.remove("zoomed");
+        canvasWrap.classList.remove("dragging");
       }
     }
 
@@ -553,6 +525,19 @@
       return c;
     }
 
+    function cropCanvasByBounds(source, bounds) {
+      const c = document.createElement("canvas");
+      c.width = bounds.width;
+      c.height = bounds.height;
+      const cctx = c.getContext("2d");
+      cctx.drawImage(
+        source,
+        bounds.x, bounds.y, bounds.width, bounds.height,
+        0, 0, bounds.width, bounds.height
+      );
+      return c;
+    }
+
     function imageToCanvas(img, maxSize) {
       const c = document.createElement("canvas");
       const cctx = c.getContext("2d");
@@ -646,24 +631,6 @@
       return c;
     }
 
-    function trimTransparentCanvas(sourceCanvasOrImage, alphaThreshold = 8) {
-      const c = document.createElement("canvas");
-      c.width = sourceCanvasOrImage.width;
-      c.height = sourceCanvasOrImage.height;
-      const cctx = c.getContext("2d");
-      cctx.drawImage(sourceCanvasOrImage, 0, 0);
-
-      const bounds = getAlphaBounds(c, alphaThreshold);
-      if (!bounds) return c;
-
-      const trimmed = document.createElement("canvas");
-      trimmed.width = bounds.width;
-      trimmed.height = bounds.height;
-      const tctx = trimmed.getContext("2d");
-      tctx.drawImage(c, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, bounds.width, bounds.height);
-      return trimmed;
-    }
-
     function cleanTransparentEdges(img, aggressive = false) {
       const c = document.createElement("canvas");
       c.width = img.width;
@@ -702,7 +669,17 @@
       sctx.filter = aggressive ? "blur(0.35px)" : "blur(0.7px)";
       sctx.drawImage(c, 0, 0);
 
-      return trimTransparentCanvas(softened, aggressive ? 6 : 8);
+      const bounds = getAlphaBounds(softened, aggressive ? 6 : 8) || {
+        x: 0,
+        y: 0,
+        width: softened.width,
+        height: softened.height
+      };
+
+      return {
+        canvas: cropCanvasByBounds(softened, bounds),
+        bounds
+      };
     }
 
     function previewOriginal(img) {
@@ -786,28 +763,71 @@
     }
 
     async function saveImage() {
-      if (!lastFinalBlob) {
-        lastFinalBlob = await canvasToBlob(canvas);
-      }
+      const mobile = isMobile();
 
-      if (isMobile()) {
-        const file = new File([lastFinalBlob], "produto-editado.png", { type: "image/png" });
+      if (mobile && navigator.share && navigator.canShare) {
+        try {
+          const dataUrl = canvas.toDataURL("image/png");
+          const response = await fetch(dataUrl);
+          const blob = await response.blob();
+          const file = new File([blob], "produto-editado.png", { type: "image/png" });
 
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          try {
+          if (navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
               title: "Imagem editada"
             });
             return;
-          } catch (e) {
-            return;
           }
-        }
+        } catch (e) {}
+      }
 
-        const url = URL.createObjectURL(lastFinalBlob);
-        window.open(url, "_blank");
+      if (mobile) {
+        const dataUrl = canvas.toDataURL("image/png");
+        const popup = window.open("", "_blank");
+
+        if (popup) {
+          popup.document.write(`
+            <html>
+              <head>
+                <title>Guardar imagem</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <style>
+                  body {
+                    margin: 0;
+                    background: #111;
+                    color: white;
+                    font-family: Arial, sans-serif;
+                    text-align: center;
+                  }
+                  p {
+                    padding: 14px;
+                    margin: 0;
+                    font-size: 14px;
+                  }
+                  img {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 0 auto;
+                  }
+                </style>
+              </head>
+              <body>
+                <p>Abre a imagem e mantém o dedo premido para a guardar.</p>
+                <img src="${dataUrl}" alt="Imagem editada" />
+              </body>
+            </html>
+          `);
+          popup.document.close();
+        } else {
+          window.location.href = dataUrl;
+        }
         return;
+      }
+
+      if (!lastFinalBlob) {
+        lastFinalBlob = await canvasToBlob(canvas);
       }
 
       const url = URL.createObjectURL(lastFinalBlob);
@@ -831,7 +851,7 @@
     }
 
     function applyBrushToSubject(pointerX, pointerY) {
-      if (!lastSubjectCanvas || !lastBackgroundImg || !originalSubjectCanvas) return;
+      if (!lastSubjectCanvas || !lastBackgroundImg || !restoreSourceCanvas) return;
 
       const scaleFactor = parseFloat(scaleSlider.value);
       const safeArea = BASE_SAFE_AREA * scaleFactor;
@@ -858,31 +878,45 @@
         return;
       }
 
+      const radius = brushSize / ratio;
       const sctx = lastSubjectCanvas.getContext("2d");
       sctx.save();
 
       if (editorMode === "erase") {
         sctx.globalCompositeOperation = "destination-out";
         sctx.beginPath();
-        sctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
+        sctx.arc(localX, localY, radius, 0, Math.PI * 2);
         sctx.fill();
       } else if (editorMode === "restore") {
-        const tempMask = document.createElement("canvas");
-        tempMask.width = originalSubjectCanvas.width;
-        tempMask.height = originalSubjectCanvas.height;
-        const mctx = tempMask.getContext("2d");
+        const diameter = Math.ceil(radius * 2);
+        const sx = Math.max(0, Math.floor(localX - radius));
+        const sy = Math.max(0, Math.floor(localY - radius));
+        const sw = Math.min(restoreSourceCanvas.width - sx, diameter);
+        const sh = Math.min(restoreSourceCanvas.height - sy, diameter);
 
-        mctx.beginPath();
-        mctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
-        mctx.closePath();
-        mctx.fillStyle = "#ffffff";
-        mctx.fill();
+        if (sw > 0 && sh > 0) {
+          const patchCanvas = document.createElement("canvas");
+          patchCanvas.width = sw;
+          patchCanvas.height = sh;
+          const pctx = patchCanvas.getContext("2d");
+          pctx.drawImage(restoreSourceCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
-        mctx.globalCompositeOperation = "source-in";
-        mctx.drawImage(originalSubjectCanvas, 0, 0);
+          const maskCanvas = document.createElement("canvas");
+          maskCanvas.width = sw;
+          maskCanvas.height = sh;
+          const mctx = maskCanvas.getContext("2d");
+          mctx.beginPath();
+          mctx.arc(localX - sx, localY - sy, radius, 0, Math.PI * 2);
+          mctx.closePath();
+          mctx.fillStyle = "#ffffff";
+          mctx.fill();
 
-        sctx.globalCompositeOperation = "source-over";
-        sctx.drawImage(tempMask, 0, 0);
+          pctx.globalCompositeOperation = "destination-in";
+          pctx.drawImage(maskCanvas, 0, 0);
+
+          sctx.globalCompositeOperation = "source-over";
+          sctx.drawImage(patchCanvas, sx, sy);
+        }
       }
 
       sctx.restore();
@@ -891,6 +925,7 @@
 
     function startEditMouse(e) {
       if (editorPanel.classList.contains("hidden")) return;
+      if (editorMode === "move") return;
       isDrawing = true;
       const pos = getCanvasPointerPosition(e);
       applyBrushToSubject(pos.x, pos.y);
@@ -920,10 +955,8 @@
 
     function startEditTouch(e) {
       if (editorPanel.classList.contains("hidden")) return;
-      if (e.touches.length > 1) {
-        cancelPendingTouchDraw();
-        return;
-      }
+      if (editorMode === "move") return;
+      if (e.touches.length > 1) return;
 
       const zoom = parseFloat(editorZoomSlider.value);
       const pos = getCanvasPointerPosition(e);
@@ -936,33 +969,28 @@
       }
 
       touchPending = true;
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-
       drawStartTimer = setTimeout(() => {
         isDrawing = true;
         touchPending = false;
         applyBrushToSubject(pos.x, pos.y);
-      }, 180);
+      }, 160);
     }
 
     async function moveEditTouch(e) {
+      if (editorMode === "move") return;
+
       const zoom = parseFloat(editorZoomSlider.value);
 
       if (touchPending && e.touches.length === 1) {
-        const dx = e.touches[0].clientX - touchStartX;
-        const dy = e.touches[0].clientY - touchStartY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (zoom > 1.001 && dist > 10) {
+        if (zoom > 1.001) {
           cancelPendingTouchDraw();
           return;
         }
       }
 
       if (!isDrawing) return;
-
       if (e.touches.length > 1) return;
+
       e.preventDefault();
       const pos = getCanvasPointerPosition(e);
       applyBrushToSubject(pos.x, pos.y);
@@ -991,7 +1019,7 @@
         setEditorActive(false);
         lastBackgroundImg = null;
         lastSubjectCanvas = null;
-        originalSubjectCanvas = null;
+        restoreSourceCanvas = null;
         lastFinalBlob = null;
         resetEditorZoom();
         updateCursor();
@@ -1015,12 +1043,12 @@
 
         const firstBounds = getAlphaBounds(firstPass, aggressive ? 8 : 20);
 
-        let workCanvas = firstBounds
+        let workingOriginalCanvas = firstBounds
           ? cropImageWithMargin(preCanvas, firstBounds, aggressive ? 0.01 : 0.14)
           : preCanvas;
 
         setStatus("Segundo recorte...");
-        const secondPass = await runSegmentation(workCanvas);
+        const secondPass = await runSegmentation(workingOriginalCanvas);
         previewIntermediate(secondPass, "A melhorar detalhes");
         await sleep(220);
 
@@ -1029,9 +1057,9 @@
         if (aggressive) {
           const secondBounds = getAlphaBounds(secondPass, 6);
           if (secondBounds) {
-            const tighterCanvas = cropImageWithMargin(workCanvas, secondBounds, 0.005);
+            workingOriginalCanvas = cropImageWithMargin(workingOriginalCanvas, secondBounds, 0.005);
             setStatus("Refinamento extra...");
-            const thirdPass = await runSegmentation(tighterCanvas);
+            const thirdPass = await runSegmentation(workingOriginalCanvas);
             previewIntermediate(thirdPass, "Refinamento final");
             await sleep(180);
             finalSubject = thirdPass;
@@ -1039,14 +1067,14 @@
         }
 
         setStatus("A limpar bordas...");
-        const cleaned = cleanTransparentEdges(finalSubject, aggressive);
+        const cleanedResult = cleanTransparentEdges(finalSubject, aggressive);
 
         setStatus("A compor imagem final...");
-        drawComposed(backgroundImg, cleaned);
+        drawComposed(backgroundImg, cleanedResult.canvas);
 
         lastBackgroundImg = backgroundImg;
-        lastSubjectCanvas = cleaned;
-        originalSubjectCanvas = cloneCanvas(cleaned);
+        lastSubjectCanvas = cleanedResult.canvas;
+        restoreSourceCanvas = cropCanvasByBounds(workingOriginalCanvas, cleanedResult.bounds);
 
         await updateDownloadBlob();
         openEditorBtn.classList.remove("hidden");
@@ -1087,10 +1115,16 @@
       updateCursor();
     });
 
+    editMoveBtn.addEventListener("click", () => {
+      editorMode = "move";
+      updateCursor();
+    });
+
     openEditorBtn.addEventListener("click", () => {
       editorPanel.classList.remove("hidden");
       setEditorActive(true);
       resetEditorZoom();
+      editorMode = "erase";
       updateCursor();
     });
 
