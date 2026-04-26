@@ -98,6 +98,11 @@
       justify-content: center;
     }
 
+    .mode-button.active {
+      outline: 2px solid #93c5fd;
+      box-shadow: 0 0 0 2px rgba(147,197,253,0.15) inset;
+    }
+
     .range-wrap {
       display: flex;
       flex-direction: column;
@@ -235,16 +240,56 @@
     }
 
     @media (max-width: 560px) {
-      .photo-editor-wrap { padding: 12px; }
-      .photo-title { font-size: 26px; }
+      .photo-editor-wrap {
+        padding: 10px;
+        margin: 12px auto;
+      }
+
+      .photo-title {
+        font-size: 24px;
+        margin-bottom: 12px;
+      }
+
+      .photo-card,
+      .photo-preview-box {
+        padding: 12px;
+        border-radius: 16px;
+      }
+
+      .photo-grid {
+        gap: 14px;
+      }
+
       .photo-input,
       .photo-select,
       .photo-button {
-        font-size: 16px;
-        padding: 14px;
+        font-size: 15px;
+        padding: 13px 12px;
+        border-radius: 12px;
       }
-      .checkbox-row { align-items: center; }
-      .checkbox-subtitle { font-size: 12px; }
+
+      .form-label,
+      .range-top,
+      .checkbox-title {
+        font-size: 14px;
+      }
+
+      .range-value,
+      .status-text {
+        font-size: 13px;
+      }
+
+      .checkbox-subtitle,
+      .tips-box {
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .checkbox-card,
+      .tips-box {
+        padding: 12px;
+        border-radius: 12px;
+      }
     }
   </style>
 </head>
@@ -284,7 +329,15 @@
               <span>Tamanho da peça</span>
               <span class="range-value" id="scaleValue">100%</span>
             </div>
-            <input class="photo-range" type="range" id="scaleSlider" min="0.75" max="1.35" step="0.01" value="1.00" />
+            <input class="photo-range" type="range" id="scaleSlider" min="0.75" max="2" step="0.01" value="1.00" />
+          </div>
+
+          <div class="range-wrap">
+            <div class="range-top">
+              <span>Rotação da sombra</span>
+              <span class="range-value" id="shadowAngleValue">45°</span>
+            </div>
+            <input class="photo-range" type="range" id="shadowAngleSlider" min="0" max="360" step="1" value="45" />
           </div>
 
           <div class="checkbox-card">
@@ -318,9 +371,9 @@
 
           <div id="editorPanel" class="hidden" style="margin-top:14px;">
             <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
-              <button class="photo-button" id="editEraseBtn" type="button" style="flex:1;">Apagar</button>
-              <button class="photo-button secondary-button" id="editRestoreBtn" type="button" style="flex:1;">Recuperar</button>
-              <button class="photo-button secondary-button" id="editMoveBtn" type="button" style="flex:1;">Mover</button>
+              <button class="photo-button mode-button" id="editEraseBtn" type="button" style="flex:1;">Apagar</button>
+              <button class="photo-button secondary-button mode-button" id="editRestoreBtn" type="button" style="flex:1;">Recuperar</button>
+              <button class="photo-button secondary-button mode-button" id="editMoveBtn" type="button" style="flex:1;">Mover</button>
               <button class="photo-button secondary-button" id="closeEditorBtn" type="button" style="flex:1;">Fechar editor</button>
             </div>
 
@@ -332,7 +385,7 @@
               <input class="photo-range" type="range" id="brushSizeSlider" min="10" max="120" step="1" value="30" />
             </div>
 
-            <div class="range-wrap">
+            <div class="range-wrap hidden" id="editorZoomWrap">
               <div class="range-top">
                 <span>Zoom do editor</span>
                 <span class="range-value" id="editorZoomValue">100%</span>
@@ -363,6 +416,8 @@
 
     const scaleSlider = document.getElementById("scaleSlider");
     const scaleValue = document.getElementById("scaleValue");
+    const shadowAngleSlider = document.getElementById("shadowAngleSlider");
+    const shadowAngleValue = document.getElementById("shadowAngleValue");
     const detailMode = document.getElementById("detailMode");
 
     const editorPanel = document.getElementById("editorPanel");
@@ -372,6 +427,7 @@
     const closeEditorBtn = document.getElementById("closeEditorBtn");
     const brushSizeSlider = document.getElementById("brushSizeSlider");
     const brushSizeValue = document.getElementById("brushSizeValue");
+    const editorZoomWrap = document.getElementById("editorZoomWrap");
     const editorZoomSlider = document.getElementById("editorZoomSlider");
     const editorZoomValue = document.getElementById("editorZoomValue");
 
@@ -388,10 +444,18 @@
     let isDrawing = false;
     let brushSize = 30;
 
-    let touchPending = false;
-    let drawStartTimer = null;
+    let dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
+
+    function setActiveModeButton() {
+      [editEraseBtn, editRestoreBtn, editMoveBtn].forEach(btn => btn.classList.remove("active"));
+      if (editorMode === "erase") editEraseBtn.classList.add("active");
+      if (editorMode === "restore") editRestoreBtn.classList.add("active");
+      if (editorMode === "move") editMoveBtn.classList.add("active");
+    }
 
     function updateCursor() {
+      setActiveModeButton();
+
       if (editorPanel.classList.contains("hidden")) {
         canvas.style.cursor = "default";
         return;
@@ -436,7 +500,7 @@
       const zoom = parseFloat(editorZoomSlider.value);
       editorZoomValue.textContent = Math.round(zoom * 100) + "%";
 
-      if (editorPanel.classList.contains("hidden")) {
+      if (editorPanel.classList.contains("hidden") || editorMode !== "move") {
         canvasStage.style.width = "100%";
         canvasStage.style.height = "100%";
         canvasStage.style.transform = "scale(1)";
@@ -719,6 +783,12 @@
     }
 
     function drawShadowCentered(img, x, y, width, height) {
+      const angleDeg = parseInt(shadowAngleSlider.value, 10);
+      const angleRad = angleDeg * Math.PI / 180;
+      const distance = 22;
+      const offsetX = Math.cos(angleRad) * distance;
+      const offsetY = Math.sin(angleRad) * distance;
+
       const shadowCanvas = document.createElement("canvas");
       shadowCanvas.width = width;
       shadowCanvas.height = height;
@@ -731,7 +801,7 @@
 
       ctx.save();
       ctx.filter = "blur(12px)";
-      ctx.drawImage(shadowCanvas, x + 12, y + 16, width, height);
+      ctx.drawImage(shadowCanvas, x + offsetX, y + offsetY, width, height);
       ctx.restore();
     }
 
@@ -767,16 +837,9 @@
 
       if (mobile && navigator.share && navigator.canShare) {
         try {
-          const dataUrl = canvas.toDataURL("image/png");
-          const response = await fetch(dataUrl);
-          const blob = await response.blob();
-          const file = new File([blob], "produto-editado.png", { type: "image/png" });
-
+          const file = new File([await (await fetch(canvas.toDataURL("image/png"))).blob()], "produto-editado.png", { type: "image/png" });
           if (navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: "Imagem editada"
-            });
+            await navigator.share({ files: [file], title: "Imagem editada" });
             return;
           }
         } catch (e) {}
@@ -793,24 +856,9 @@
                 <title>Guardar imagem</title>
                 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
                 <style>
-                  body {
-                    margin: 0;
-                    background: #111;
-                    color: white;
-                    font-family: Arial, sans-serif;
-                    text-align: center;
-                  }
-                  p {
-                    padding: 14px;
-                    margin: 0;
-                    font-size: 14px;
-                  }
-                  img {
-                    max-width: 100%;
-                    height: auto;
-                    display: block;
-                    margin: 0 auto;
-                  }
+                  body { margin:0; background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
+                  p { padding:14px; margin:0; font-size:14px; }
+                  img { max-width:100%; height:auto; display:block; margin:0 auto; }
                 </style>
               </head>
               <body>
@@ -923,15 +971,49 @@
       drawComposed(lastBackgroundImg, lastSubjectCanvas);
     }
 
+    function startPan(clientX, clientY) {
+      dragState.active = true;
+      dragState.startX = clientX;
+      dragState.startY = clientY;
+      dragState.startLeft = canvasWrap.scrollLeft;
+      dragState.startTop = canvasWrap.scrollTop;
+      canvasWrap.classList.add("dragging");
+    }
+
+    function movePan(clientX, clientY) {
+      if (!dragState.active) return;
+      const dx = clientX - dragState.startX;
+      const dy = clientY - dragState.startY;
+      canvasWrap.scrollLeft = dragState.startLeft - dx;
+      canvasWrap.scrollTop = dragState.startTop - dy;
+    }
+
+    function endPan() {
+      dragState.active = false;
+      canvasWrap.classList.remove("dragging");
+    }
+
     function startEditMouse(e) {
       if (editorPanel.classList.contains("hidden")) return;
-      if (editorMode === "move") return;
+
+      if (editorMode === "move") {
+        if (parseFloat(editorZoomSlider.value) > 1.001) {
+          startPan(e.clientX, e.clientY);
+        }
+        return;
+      }
+
       isDrawing = true;
       const pos = getCanvasPointerPosition(e);
       applyBrushToSubject(pos.x, pos.y);
     }
 
     async function moveEditMouse(e) {
+      if (editorMode === "move") {
+        movePan(e.clientX, e.clientY);
+        return;
+      }
+
       if (!isDrawing) return;
       e.preventDefault();
       const pos = getCanvasPointerPosition(e);
@@ -940,6 +1022,8 @@
     }
 
     async function endEditMouse() {
+      endPan();
+
       if (!isDrawing) return;
       isDrawing = false;
       await updateDownloadBlob();
@@ -955,8 +1039,14 @@
 
     function startEditTouch(e) {
       if (editorPanel.classList.contains("hidden")) return;
-      if (editorMode === "move") return;
       if (e.touches.length > 1) return;
+
+      if (editorMode === "move") {
+        if (parseFloat(editorZoomSlider.value) > 1.001) {
+          startPan(e.touches[0].clientX, e.touches[0].clientY);
+        }
+        return;
+      }
 
       const zoom = parseFloat(editorZoomSlider.value);
       const pos = getCanvasPointerPosition(e);
@@ -977,7 +1067,13 @@
     }
 
     async function moveEditTouch(e) {
-      if (editorMode === "move") return;
+      if (editorMode === "move") {
+        if (dragState.active && e.touches.length === 1) {
+          movePan(e.touches[0].clientX, e.touches[0].clientY);
+          e.preventDefault();
+        }
+        return;
+      }
 
       const zoom = parseFloat(editorZoomSlider.value);
 
@@ -999,6 +1095,8 @@
 
     async function endEditTouch() {
       cancelPendingTouchDraw();
+      endPan();
+
       if (!isDrawing) return;
       isDrawing = false;
       await updateDownloadBlob();
@@ -1016,6 +1114,7 @@
         downloadBtn.classList.add("hidden");
         openEditorBtn.classList.add("hidden");
         editorPanel.classList.add("hidden");
+        editorZoomWrap.classList.add("hidden");
         setEditorActive(false);
         lastBackgroundImg = null;
         lastSubjectCanvas = null;
@@ -1096,6 +1195,14 @@
       }
     });
 
+    shadowAngleSlider.addEventListener("input", async () => {
+      shadowAngleValue.textContent = `${shadowAngleSlider.value}°`;
+      if (lastBackgroundImg && lastSubjectCanvas) {
+        drawComposed(lastBackgroundImg, lastSubjectCanvas);
+        await updateDownloadBlob();
+      }
+    });
+
     brushSizeSlider.addEventListener("input", () => {
       brushSize = parseInt(brushSizeSlider.value, 10);
       brushSizeValue.textContent = brushSize;
@@ -1107,29 +1214,37 @@
 
     editEraseBtn.addEventListener("click", () => {
       editorMode = "erase";
+      editorZoomWrap.classList.add("hidden");
+      resetEditorZoom();
       updateCursor();
     });
 
     editRestoreBtn.addEventListener("click", () => {
       editorMode = "restore";
+      editorZoomWrap.classList.add("hidden");
+      resetEditorZoom();
       updateCursor();
     });
 
     editMoveBtn.addEventListener("click", () => {
       editorMode = "move";
+      editorZoomWrap.classList.remove("hidden");
+      applyEditorZoom();
       updateCursor();
     });
 
     openEditorBtn.addEventListener("click", () => {
       editorPanel.classList.remove("hidden");
+      editorMode = "erase";
+      editorZoomWrap.classList.add("hidden");
       setEditorActive(true);
       resetEditorZoom();
-      editorMode = "erase";
       updateCursor();
     });
 
     closeEditorBtn.addEventListener("click", async () => {
       editorPanel.classList.add("hidden");
+      editorZoomWrap.classList.add("hidden");
       setEditorActive(false);
       resetEditorZoom();
       updateCursor();
@@ -1153,6 +1268,8 @@
     canvas.addEventListener("touchmove", moveEditTouch, { passive: false });
     window.addEventListener("touchend", endEditTouch);
 
+    shadowAngleValue.textContent = `${shadowAngleSlider.value}°`;
+    scaleValue.textContent = `${Math.round(parseFloat(scaleSlider.value) * 100)}%`;
     applyEditorZoom();
     updateCursor();
   </script>
