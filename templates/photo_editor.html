@@ -209,7 +209,7 @@
       touch-action: auto;
     }
 
-    .canvas-wrap.editor-active {
+    .canvas-wrap.editor-active.zoomed {
       overflow: auto;
       touch-action: pan-x pan-y;
       -webkit-overflow-scrolling: touch;
@@ -220,11 +220,6 @@
       height: 100%;
       transform-origin: top left;
       position: relative;
-    }
-
-    .canvas-wrap.editor-active .canvas-stage {
-      width: 1200px;
-      height: 1200px;
     }
 
     .canvas-stage canvas {
@@ -423,6 +418,11 @@
     let isDrawing = false;
     let brushSize = 30;
 
+    let touchPending = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let drawStartTimer = null;
+
     function updateCursor() {
       if (editorPanel.classList.contains("hidden")) {
         canvas.style.cursor = "default";
@@ -451,20 +451,47 @@
       }
     }
 
-    function resetEditorZoom() {
-      editorZoomSlider.value = "1";
-      editorZoomValue.textContent = "100%";
-      canvasStage.style.transform = "scale(1)";
-      canvasWrap.scrollLeft = 0;
-      canvasWrap.scrollTop = 0;
-    }
-
     function setEditorActive(active) {
       if (active) {
         canvasWrap.classList.add("editor-active");
       } else {
         canvasWrap.classList.remove("editor-active");
+        canvasWrap.classList.remove("zoomed");
       }
+    }
+
+    function applyEditorZoom() {
+      const zoom = parseFloat(editorZoomSlider.value);
+      editorZoomValue.textContent = Math.round(zoom * 100) + "%";
+
+      if (editorPanel.classList.contains("hidden")) {
+        canvasStage.style.width = "100%";
+        canvasStage.style.height = "100%";
+        canvasStage.style.transform = "scale(1)";
+        canvasWrap.classList.remove("zoomed");
+        canvasWrap.scrollLeft = 0;
+        canvasWrap.scrollTop = 0;
+        return;
+      }
+
+      if (zoom <= 1.001) {
+        canvasStage.style.width = "100%";
+        canvasStage.style.height = "100%";
+        canvasStage.style.transform = "scale(1)";
+        canvasWrap.classList.remove("zoomed");
+        canvasWrap.scrollLeft = 0;
+        canvasWrap.scrollTop = 0;
+      } else {
+        canvasStage.style.width = `${CANVAS_SIZE}px`;
+        canvasStage.style.height = `${CANVAS_SIZE}px`;
+        canvasStage.style.transform = `scale(${zoom})`;
+        canvasWrap.classList.add("zoomed");
+      }
+    }
+
+    function resetEditorZoom() {
+      editorZoomSlider.value = "1";
+      applyEditorZoom();
     }
 
     function setStatus(text) {
@@ -840,56 +867,36 @@
         sctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
         sctx.fill();
       } else if (editorMode === "restore") {
-        const radius = brushSize / ratio;
-        const diameter = Math.ceil(radius * 2);
-
-        const sx = Math.max(0, Math.floor(localX - radius));
-        const sy = Math.max(0, Math.floor(localY - radius));
-        const sw = Math.min(originalSubjectCanvas.width - sx, diameter);
-        const sh = Math.min(originalSubjectCanvas.height - sy, diameter);
-
-        if (sw <= 0 || sh <= 0) {
-          sctx.restore();
-          return;
-        }
-
-        const patchCanvas = document.createElement("canvas");
-        patchCanvas.width = sw;
-        patchCanvas.height = sh;
-        const pctx = patchCanvas.getContext("2d");
-
-        pctx.drawImage(originalSubjectCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-
-        const maskCanvas = document.createElement("canvas");
-        maskCanvas.width = sw;
-        maskCanvas.height = sh;
-        const mctx = maskCanvas.getContext("2d");
+        const tempMask = document.createElement("canvas");
+        tempMask.width = originalSubjectCanvas.width;
+        tempMask.height = originalSubjectCanvas.height;
+        const mctx = tempMask.getContext("2d");
 
         mctx.beginPath();
-        mctx.arc(localX - sx, localY - sy, radius, 0, Math.PI * 2);
+        mctx.arc(localX, localY, brushSize / ratio, 0, Math.PI * 2);
         mctx.closePath();
         mctx.fillStyle = "#ffffff";
         mctx.fill();
 
-        pctx.globalCompositeOperation = "destination-in";
-        pctx.drawImage(maskCanvas, 0, 0);
+        mctx.globalCompositeOperation = "source-in";
+        mctx.drawImage(originalSubjectCanvas, 0, 0);
 
         sctx.globalCompositeOperation = "source-over";
-        sctx.drawImage(patchCanvas, sx, sy);
+        sctx.drawImage(tempMask, 0, 0);
       }
 
       sctx.restore();
       drawComposed(lastBackgroundImg, lastSubjectCanvas);
     }
 
-    function startEdit(e) {
+    function startEditMouse(e) {
       if (editorPanel.classList.contains("hidden")) return;
       isDrawing = true;
       const pos = getCanvasPointerPosition(e);
       applyBrushToSubject(pos.x, pos.y);
     }
 
-    async function moveEdit(e) {
+    async function moveEditMouse(e) {
       if (!isDrawing) return;
       e.preventDefault();
       const pos = getCanvasPointerPosition(e);
@@ -897,7 +904,73 @@
       await updateDownloadBlob();
     }
 
-    async function endEdit() {
+    async function endEditMouse() {
+      if (!isDrawing) return;
+      isDrawing = false;
+      await updateDownloadBlob();
+    }
+
+    function cancelPendingTouchDraw() {
+      if (drawStartTimer) {
+        clearTimeout(drawStartTimer);
+        drawStartTimer = null;
+      }
+      touchPending = false;
+    }
+
+    function startEditTouch(e) {
+      if (editorPanel.classList.contains("hidden")) return;
+      if (e.touches.length > 1) {
+        cancelPendingTouchDraw();
+        return;
+      }
+
+      const zoom = parseFloat(editorZoomSlider.value);
+      const pos = getCanvasPointerPosition(e);
+
+      if (zoom <= 1.001) {
+        isDrawing = true;
+        e.preventDefault();
+        applyBrushToSubject(pos.x, pos.y);
+        return;
+      }
+
+      touchPending = true;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+
+      drawStartTimer = setTimeout(() => {
+        isDrawing = true;
+        touchPending = false;
+        applyBrushToSubject(pos.x, pos.y);
+      }, 180);
+    }
+
+    async function moveEditTouch(e) {
+      const zoom = parseFloat(editorZoomSlider.value);
+
+      if (touchPending && e.touches.length === 1) {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (zoom > 1.001 && dist > 10) {
+          cancelPendingTouchDraw();
+          return;
+        }
+      }
+
+      if (!isDrawing) return;
+
+      if (e.touches.length > 1) return;
+      e.preventDefault();
+      const pos = getCanvasPointerPosition(e);
+      applyBrushToSubject(pos.x, pos.y);
+      await updateDownloadBlob();
+    }
+
+    async function endEditTouch() {
+      cancelPendingTouchDraw();
       if (!isDrawing) return;
       isDrawing = false;
       await updateDownloadBlob();
@@ -1001,19 +1074,7 @@
     });
 
     editorZoomSlider.addEventListener("input", () => {
-      if (editorPanel.classList.contains("hidden")) {
-        editorZoomSlider.value = "1";
-        return;
-      }
-
-      const zoom = parseFloat(editorZoomSlider.value);
-      editorZoomValue.textContent = Math.round(zoom * 100) + "%";
-      canvasStage.style.transform = `scale(${zoom})`;
-
-      if (zoom <= 1.001) {
-        canvasWrap.scrollLeft = 0;
-        canvasWrap.scrollTop = 0;
-      }
+      applyEditorZoom();
     });
 
     editEraseBtn.addEventListener("click", () => {
@@ -1050,14 +1111,15 @@
       await saveImage();
     });
 
-    canvas.addEventListener("mousedown", startEdit);
-    canvas.addEventListener("mousemove", moveEdit);
-    window.addEventListener("mouseup", endEdit);
+    canvas.addEventListener("mousedown", startEditMouse);
+    canvas.addEventListener("mousemove", moveEditMouse);
+    window.addEventListener("mouseup", endEditMouse);
 
-    canvas.addEventListener("touchstart", startEdit, { passive: false });
-    canvas.addEventListener("touchmove", moveEdit, { passive: false });
-    window.addEventListener("touchend", endEdit);
+    canvas.addEventListener("touchstart", startEditTouch, { passive: false });
+    canvas.addEventListener("touchmove", moveEditTouch, { passive: false });
+    window.addEventListener("touchend", endEditTouch);
 
+    applyEditorZoom();
     updateCursor();
   </script>
 </body>
