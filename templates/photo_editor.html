@@ -265,7 +265,6 @@
       .photo-button {
         font-size: 15px;
         padding: 13px 12px;
-        border-radius: 12px;
       }
 
       .form-label,
@@ -385,7 +384,7 @@
               <input class="photo-range" type="range" id="brushSizeSlider" min="10" max="120" step="1" value="30" />
             </div>
 
-            <div class="range-wrap hidden" id="editorZoomWrap">
+            <div class="range-wrap">
               <div class="range-top">
                 <span>Zoom do editor</span>
                 <span class="range-value" id="editorZoomValue">100%</span>
@@ -427,7 +426,6 @@
     const closeEditorBtn = document.getElementById("closeEditorBtn");
     const brushSizeSlider = document.getElementById("brushSizeSlider");
     const brushSizeValue = document.getElementById("brushSizeValue");
-    const editorZoomWrap = document.getElementById("editorZoomWrap");
     const editorZoomSlider = document.getElementById("editorZoomSlider");
     const editorZoomValue = document.getElementById("editorZoomValue");
 
@@ -500,7 +498,7 @@
       const zoom = parseFloat(editorZoomSlider.value);
       editorZoomValue.textContent = Math.round(zoom * 100) + "%";
 
-      if (editorPanel.classList.contains("hidden") || editorMode !== "move") {
+      if (editorPanel.classList.contains("hidden")) {
         canvasStage.style.width = "100%";
         canvasStage.style.height = "100%";
         canvasStage.style.transform = "scale(1)";
@@ -833,58 +831,48 @@
     }
 
     async function saveImage() {
-      const mobile = isMobile();
+      const dataUrl = canvas.toDataURL("image/png");
 
-      if (mobile && navigator.share && navigator.canShare) {
+      if (isMobile()) {
         try {
-          const file = new File([await (await fetch(canvas.toDataURL("image/png"))).blob()], "produto-editado.png", { type: "image/png" });
-          if (navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file], title: "Imagem editada" });
+          const newTab = window.open("", "_blank");
+          if (newTab) {
+            newTab.document.write(`
+              <html>
+                <head>
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <title>Guardar imagem</title>
+                  <style>
+                    body { margin:0; background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
+                    p { padding:14px; margin:0; font-size:14px; }
+                    img { max-width:100%; height:auto; display:block; margin:0 auto; }
+                  </style>
+                </head>
+                <body>
+                  <p>Abre a imagem e mantém o dedo premido para a guardar.</p>
+                  <img src="${dataUrl}" alt="Imagem editada">
+                </body>
+              </html>
+            `);
+            newTab.document.close();
             return;
           }
         } catch (e) {}
-      }
 
-      if (mobile) {
-        const dataUrl = canvas.toDataURL("image/png");
-        const popup = window.open("", "_blank");
-
-        if (popup) {
-          popup.document.write(`
-            <html>
-              <head>
-                <title>Guardar imagem</title>
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                <style>
-                  body { margin:0; background:#111; color:#fff; font-family:Arial,sans-serif; text-align:center; }
-                  p { padding:14px; margin:0; font-size:14px; }
-                  img { max-width:100%; height:auto; display:block; margin:0 auto; }
-                </style>
-              </head>
-              <body>
-                <p>Abre a imagem e mantém o dedo premido para a guardar.</p>
-                <img src="${dataUrl}" alt="Imagem editada" />
-              </body>
-            </html>
-          `);
-          popup.document.close();
-        } else {
-          window.location.href = dataUrl;
-        }
+        window.location.href = dataUrl;
         return;
       }
 
-      if (!lastFinalBlob) {
-        lastFinalBlob = await canvasToBlob(canvas);
+      try {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = "produto-editado.png";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      } catch (e) {
+        window.open(dataUrl, "_blank");
       }
-
-      const url = URL.createObjectURL(lastFinalBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "produto-editado.png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
     }
 
     function getCanvasPointerPosition(e) {
@@ -1029,41 +1017,22 @@
       await updateDownloadBlob();
     }
 
-    function cancelPendingTouchDraw() {
-      if (drawStartTimer) {
-        clearTimeout(drawStartTimer);
-        drawStartTimer = null;
-      }
-      touchPending = false;
-    }
-
     function startEditTouch(e) {
       if (editorPanel.classList.contains("hidden")) return;
-      if (e.touches.length > 1) return;
+      if (e.touches.length !== 1) return;
 
       if (editorMode === "move") {
         if (parseFloat(editorZoomSlider.value) > 1.001) {
           startPan(e.touches[0].clientX, e.touches[0].clientY);
+          e.preventDefault();
         }
         return;
       }
 
-      const zoom = parseFloat(editorZoomSlider.value);
+      isDrawing = true;
       const pos = getCanvasPointerPosition(e);
-
-      if (zoom <= 1.001) {
-        isDrawing = true;
-        e.preventDefault();
-        applyBrushToSubject(pos.x, pos.y);
-        return;
-      }
-
-      touchPending = true;
-      drawStartTimer = setTimeout(() => {
-        isDrawing = true;
-        touchPending = false;
-        applyBrushToSubject(pos.x, pos.y);
-      }, 160);
+      e.preventDefault();
+      applyBrushToSubject(pos.x, pos.y);
     }
 
     async function moveEditTouch(e) {
@@ -1075,17 +1044,8 @@
         return;
       }
 
-      const zoom = parseFloat(editorZoomSlider.value);
-
-      if (touchPending && e.touches.length === 1) {
-        if (zoom > 1.001) {
-          cancelPendingTouchDraw();
-          return;
-        }
-      }
-
       if (!isDrawing) return;
-      if (e.touches.length > 1) return;
+      if (e.touches.length !== 1) return;
 
       e.preventDefault();
       const pos = getCanvasPointerPosition(e);
@@ -1094,7 +1054,6 @@
     }
 
     async function endEditTouch() {
-      cancelPendingTouchDraw();
       endPan();
 
       if (!isDrawing) return;
@@ -1114,7 +1073,6 @@
         downloadBtn.classList.add("hidden");
         openEditorBtn.classList.add("hidden");
         editorPanel.classList.add("hidden");
-        editorZoomWrap.classList.add("hidden");
         setEditorActive(false);
         lastBackgroundImg = null;
         lastSubjectCanvas = null;
@@ -1214,29 +1172,22 @@
 
     editEraseBtn.addEventListener("click", () => {
       editorMode = "erase";
-      editorZoomWrap.classList.add("hidden");
-      resetEditorZoom();
       updateCursor();
     });
 
     editRestoreBtn.addEventListener("click", () => {
       editorMode = "restore";
-      editorZoomWrap.classList.add("hidden");
-      resetEditorZoom();
       updateCursor();
     });
 
     editMoveBtn.addEventListener("click", () => {
       editorMode = "move";
-      editorZoomWrap.classList.remove("hidden");
-      applyEditorZoom();
       updateCursor();
     });
 
     openEditorBtn.addEventListener("click", () => {
       editorPanel.classList.remove("hidden");
       editorMode = "erase";
-      editorZoomWrap.classList.add("hidden");
       setEditorActive(true);
       resetEditorZoom();
       updateCursor();
@@ -1244,7 +1195,6 @@
 
     closeEditorBtn.addEventListener("click", async () => {
       editorPanel.classList.add("hidden");
-      editorZoomWrap.classList.add("hidden");
       setEditorActive(false);
       resetEditorZoom();
       updateCursor();
